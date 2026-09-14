@@ -301,11 +301,11 @@ function Library:CreateWindow(title, color)
                 background.Size = UDim2.new(0, 250, 0, (UIListLayout_3.AbsoluteContentSize.Y - 4) + 30)
                 container_2.Size = UDim2.new(0, 250, 0, (UIListLayout_3.AbsoluteContentSize.Y - 14) + 30)
             end)
-            function GroupTypes:CreateToggle(name, callback)
+            function GroupTypes:CreateToggle(name, callback, default)
                 name = name or "New Toggle"
                 callback = callback or function(v) print(v) end
                 local ToggleTypes = {}
-                local Enabled = false
+                local Enabled = default or false
                 local checkbox = Instance.new("Frame")
                 local UIGradient_2 = Instance.new("UIGradient")
                 local title_3 = Instance.new("TextLabel")
@@ -340,6 +340,7 @@ function Library:CreateWindow(title, color)
                 main.Text = ""
                 main.TextColor3 = Color3.fromRGB(0, 0, 0)
                 main.TextSize = 14.000
+                if Enabled then checkbox.BackgroundColor3 = color end
                 local ToggleCallback = callback
                 game.RunService.Heartbeat:Connect(function()
                     if (checkbox.BackgroundColor3 == oldcolor) then checkbox.BackgroundColor3 = color end
@@ -866,138 +867,6 @@ function Library:CreateWindow(title, color)
                 end
                 return ColorTypes
             end
-            function GroupTypes:CreateESPPreview(opts)
-                opts = opts or {}
-                local accent = opts.accent or Color3.fromRGB(19, 119, 255)
-                local boxColor = opts.boxColor or Color3.fromRGB(0, 255, 0)
-                local skeletonColor = opts.skeletonColor or Color3.fromRGB(255, 255, 255)
-                local healthHigh = opts.healthHigh or Color3.fromRGB(0, 255, 0)
-                local healthLow = opts.healthLow or Color3.fromRGB(255, 0, 0)
-                local preview = Instance.new("Frame")
-                preview.Name = "ESPPreview"
-                preview.Parent = container_2
-                preview.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-                preview.BorderColor3 = Color3.fromRGB(8, 8, 8)
-                preview.Size = UDim2.new(1, -20, 0, 300)
-                preview.ClipsDescendants = true
-                local previewInline = Instance.new("Frame")
-                previewInline.Parent = preview
-                previewInline.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-                previewInline.BorderSizePixel = 0
-                previewInline.Position = UDim2.new(0, 1, 0, 1)
-                previewInline.Size = UDim2.new(1, -2, 1, -2)
-                local previewTitle = Instance.new("TextLabel")
-                previewTitle.Parent = previewInline
-                previewTitle.BackgroundTransparency = 1
-                previewTitle.Position = UDim2.new(0, 10, 0, 4)
-                previewTitle.Size = UDim2.new(0, 200, 0, 16)
-                previewTitle.Font = Enum.Font.SourceSans
-                previewTitle.Text = "ESP Preview"
-                previewTitle.TextColor3 = accent
-                previewTitle.TextSize = 13
-                previewTitle.TextXAlignment = Enum.TextXAlignment.Left
-                local canvas = Instance.new("Frame")
-                canvas.Parent = previewInline
-                canvas.BackgroundTransparency = 1
-                canvas.Position = UDim2.new(0, 0, 0, 22)
-                canvas.Size = UDim2.new(1, 0, 1, -26)
-                local function makeLine(parent, p, s, rot, col)
-                    local l = Instance.new("Frame")
-                    l.Parent = parent
-                    l.AnchorPoint = Vector2.new(0.5, 0.5)
-                    l.BackgroundColor3 = col
-                    l.BorderSizePixel = 0
-                    l.Position = p
-                    l.Size = s
-                    l.Rotation = rot or 0
-                    l.ZIndex = 5
-                    return l
-                end
-                local function makeText(parent, p, s, txt, col, sz, align)
-                    local t = Instance.new("TextLabel")
-                    t.Parent = parent
-                    t.BackgroundTransparency = 1
-                    t.Position = p
-                    t.Size = s
-                    t.Font = Enum.Font.SourceSans
-                    t.Text = txt
-                    t.TextColor3 = col
-                    t.TextSize = sz or 11
-                    t.TextStrokeTransparency = 0.3
-                    t.ZIndex = 10
-                    t.TextXAlignment = align or Enum.TextXAlignment.Center
-                    return t
-                end
-                local cx = 0.5
-                local headY = 0.12
-                local neckY = 0.21
-                local shoulderY = 0.25
-                local hipY = 0.52
-                local kneeY = 0.72
-                local head = Instance.new("Frame")
-                head.Parent = canvas
-                head.AnchorPoint = Vector2.new(0.5, 0.5)
-                head.BackgroundColor3 = skeletonColor
-                head.BackgroundTransparency = 0.3
-                head.Position = UDim2.new(cx, 0, headY, 0)
-                head.Size = UDim2.new(0, 20, 0, 20)
-                head.ZIndex = 4
-                Instance.new("UICorner", head).CornerRadius = UDim.new(1, 0)
-                makeLine(canvas, UDim2.new(cx, 0, (neckY + hipY) / 2, 0), UDim2.new(0, 2, 0, (hipY - neckY) * 270), 0, skeletonColor)
-                makeLine(canvas, UDim2.new(cx, 0, shoulderY, 0), UDim2.new(0, 40, 0, 2), 0, skeletonColor)
-                makeLine(canvas, UDim2.new(cx - 0.045, 0, shoulderY, 0), UDim2.new(0, 2, 0, 35), 25, skeletonColor)
-                makeLine(canvas, UDim2.new(cx - 0.065, 0, shoulderY + 0.06, 0), UDim2.new(0, 2, 0, 32), 5, skeletonColor)
-                makeLine(canvas, UDim2.new(cx + 0.045, 0, shoulderY, 0), UDim2.new(0, 2, 0, 35), -25, skeletonColor)
-                makeLine(canvas, UDim2.new(cx + 0.065, 0, shoulderY + 0.06, 0), UDim2.new(0, 2, 0, 32), -5, skeletonColor)
-                makeLine(canvas, UDim2.new(cx, 0, hipY, 0), UDim2.new(0, 24, 0, 2), 0, skeletonColor)
-                makeLine(canvas, UDim2.new(cx - 0.03, 0, hipY, 0), UDim2.new(0, 2, 0, 55), 8, skeletonColor)
-                makeLine(canvas, UDim2.new(cx - 0.04, 0, kneeY, 0), UDim2.new(0, 2, 0, 55), 3, skeletonColor)
-                makeLine(canvas, UDim2.new(cx + 0.03, 0, hipY, 0), UDim2.new(0, 2, 0, 55), -8, skeletonColor)
-                makeLine(canvas, UDim2.new(cx + 0.04, 0, kneeY, 0), UDim2.new(0, 2, 0, 55), -3, skeletonColor)
-                local boxX = cx - 0.12
-                local boxY = headY - 0.065
-                local boxW = 0.24
-                local boxH = 0.88
-                makeLine(canvas, UDim2.new(cx, 0, boxY, 0), UDim2.new(boxW, 0, 0, 2), 0, boxColor)
-                makeLine(canvas, UDim2.new(cx, 0, boxY + boxH, 0), UDim2.new(boxW, 0, 0, 2), 0, boxColor)
-                makeLine(canvas, UDim2.new(boxX, 0, (boxY + boxY + boxH) / 2, 0), UDim2.new(0, 2, 0, boxH * 270), 0, boxColor)
-                makeLine(canvas, UDim2.new(boxX + boxW, 0, (boxY + boxY + boxH) / 2, 0), UDim2.new(0, 2, 0, boxH * 270), 0, boxColor)
-                local hbX = boxX - 0.03
-                local hbTop = boxY + 0.01
-                local hbBot = boxY + boxH - 0.01
-                local hbH = hbBot - hbTop
-                local hbBg = Instance.new("Frame")
-                hbBg.Parent = canvas
-                hbBg.AnchorPoint = Vector2.new(0.5, 0)
-                hbBg.Position = UDim2.new(hbX, 0, hbTop, 0)
-                hbBg.Size = UDim2.new(0.01, 0, hbH, 0)
-                hbBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                hbBg.BorderSizePixel = 0
-                hbBg.ZIndex = 6
-                local hbFill = Instance.new("Frame")
-                hbFill.Parent = hbBg
-                hbFill.AnchorPoint = Vector2.new(0, 1)
-                hbFill.Position = UDim2.new(0, 0, 1, 0)
-                hbFill.Size = UDim2.new(1, 0, 0.72, 0)
-                hbFill.BackgroundColor3 = healthHigh
-                hbFill.BorderSizePixel = 0
-                hbFill.ZIndex = 7
-                makeText(canvas, UDim2.new(hbX - 0.025, 0, hbTop - 0.025, 0), UDim2.new(0, 30, 0, 12), "72", healthHigh, 10)
-                makeText(canvas, UDim2.new(cx, 0, boxY - 0.04, 0), UDim2.new(0, 120, 0, 14), "PlayerName", Color3.fromRGB(255, 255, 255), 12)
-                makeText(canvas, UDim2.new(cx, 0, boxY + boxH + 0.01, 0), UDim2.new(0, 60, 0, 12), "[24m]", Color3.fromRGB(180, 180, 180), 10)
-                makeText(canvas, UDim2.new(cx, 0, boxY + boxH + 0.03, 0), UDim2.new(0, 80, 0, 12), "AK-47", accent, 9)
-                makeLine(canvas, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 1, 0, (1 - (boxY + boxH)) * 270 - 8), 0, accent)
-                local ESPPreviewTypes = {}
-                function ESPPreviewTypes:SetColors(cfg)
-                    if cfg.box then boxColor = cfg.box end
-                    if cfg.skeleton then skeletonColor = cfg.skeleton end
-                    if cfg.accent then accent = cfg.accent end
-                    if cfg.healthHigh then healthHigh = cfg.healthHigh end
-                    if cfg.healthLow then healthLow = cfg.healthLow end
-                end
-                function ESPPreviewTypes:GetCanvas() return canvas end
-                return ESPPreviewTypes
-            end
             return GroupTypes
         end
         return TabTypes
@@ -1141,8 +1010,8 @@ local CombatGroup = CombatTab:CreateGroupbox("Triggerbot")
 CombatGroup:CreateToggle("Enable Combat", function(v)
     Combat_Enabled = v
     Notify("Combat", v and "ON" or "OFF", 2)
-end):CreateKeyBind("T")
-CombatGroup:CreateToggle("Triggerbot", function(v) Trig_Enabled = v end)
+end, true):CreateKeyBind("T")
+CombatGroup:CreateToggle("Triggerbot", function(v) Trig_Enabled = v end, true)
 CombatGroup:CreateSlider("Max Distance", 100, 2000, 500, function(v) Trig_MaxDist = v end)
 CombatGroup:CreateSlider("Delay (ms)", 0, 200, 0, function(v) Trig_Delay = v end)
 
@@ -1153,15 +1022,15 @@ VisualsGroup:CreateToggle("Enable Visuals", function(v)
         for p, _ in pairs(ESP) do pcall(DestroyESP, p) end
     end
     Notify("Visuals", v and "ON" or "OFF", 2)
-end):CreateKeyBind("P")
-VisualsGroup:CreateToggle("Skeleton", function(v) ESP_Skeleton = v end)
-VisualsGroup:CreateToggle("Box", function(v) ESP_Box = v end)
-VisualsGroup:CreateToggle("Fill Box", function(v) ESP_FillBox = v end)
-VisualsGroup:CreateToggle("Nametag", function(v) ESP_Name = v end)
-VisualsGroup:CreateToggle("Health Bar", function(v) ESP_Health = v end)
-VisualsGroup:CreateToggle("Distance", function(v) ESP_Distance = v end)
-VisualsGroup:CreateToggle("Weapon", function(v) ESP_Weapon = v end)
-VisualsGroup:CreateToggle("Tracers", function(v) ESP_Tracer = v end)
+end, true):CreateKeyBind("P")
+VisualsGroup:CreateToggle("Skeleton", function(v) ESP_Skeleton = v end, true)
+VisualsGroup:CreateToggle("Box", function(v) ESP_Box = v end, true)
+VisualsGroup:CreateToggle("Fill Box", function(v) ESP_FillBox = v end, false)
+VisualsGroup:CreateToggle("Nametag", function(v) ESP_Name = v end, true)
+VisualsGroup:CreateToggle("Health Bar", function(v) ESP_Health = v end, true)
+VisualsGroup:CreateToggle("Distance", function(v) ESP_Distance = v end, true)
+VisualsGroup:CreateToggle("Weapon", function(v) ESP_Weapon = v end, true)
+VisualsGroup:CreateToggle("Tracers", function(v) ESP_Tracer = v end, false)
 VisualsGroup:CreateSlider("Thickness", 1, 5, 1, function(v) ESP_Thickness = v end)
 VisualsGroup:CreateSlider("Max Distance", 500, 5000, 2000, function(v) ESP_MaxDist = v end)
 VisualsGroup:CreateToggle("Hide Local Player", function(v) ESP_HideLocal = v end)
@@ -1442,6 +1311,75 @@ local function GetWeaponName(char)
     return ""
 end
 
+-- compute world-space AABB from all BaseParts in a character
+local function GetCharBounds(char)
+    local minV, maxV
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local p = part.Position
+            local s = part.Size
+            local corners = {
+                p + Vector3.new(-s.X/2, -s.Y/2, -s.Z/2),
+                p + Vector3.new( s.X/2, -s.Y/2, -s.Z/2),
+                p + Vector3.new(-s.X/2,  s.Y/2, -s.Z/2),
+                p + Vector3.new( s.X/2,  s.Y/2, -s.Z/2),
+                p + Vector3.new(-s.X/2, -s.Y/2,  s.Z/2),
+                p + Vector3.new( s.X/2, -s.Y/2,  s.Z/2),
+                p + Vector3.new(-s.X/2,  s.Y/2,  s.Z/2),
+                p + Vector3.new( s.X/2,  s.Y/2,  s.Z/2),
+            }
+            for _, c in ipairs(corners) do
+                if not minV then
+                    minV = c
+                    maxV = c
+                else
+                    minV = Vector3.new(math.min(minV.X, c.X), math.min(minV.Y, c.Y), math.min(minV.Z, c.Z))
+                    maxV = Vector3.new(math.max(maxV.X, c.X), math.max(maxV.Y, c.Y), math.max(maxV.Z, c.Z))
+                end
+            end
+        end
+    end
+    return minV, maxV
+end
+
+-- project a world-space AABB to screen-space box (left, top, right, bottom, onscreen)
+local function AABB2Screen(minV, maxV)
+    local cam = Camera.CFrame
+    local vp = Camera.ViewportSize
+    local function proj(p)
+        local v = cam:PointToObjectSpace(p)
+        if v.Z > 0 then return nil end
+        local x = (v.X / -v.Z) * (vp.X / 2) + vp.X / 2
+        local y = (v.Y / -v.Z) * (vp.Y / 2) + vp.Y / 2
+        return Vector2.new(x, y)
+    end
+    -- project all 8 corners
+    local pts = {}
+    for _, c in ipairs({
+        Vector3.new(minV.X, minV.Y, minV.Z),
+        Vector3.new(maxV.X, minV.Y, minV.Z),
+        Vector3.new(minV.X, maxV.Y, minV.Z),
+        Vector3.new(maxV.X, maxV.Y, minV.Z),
+        Vector3.new(minV.X, minV.Y, maxV.Z),
+        Vector3.new(maxV.X, minV.Y, maxV.Z),
+        Vector3.new(minV.X, maxV.Y, maxV.Z),
+        Vector3.new(maxV.X, maxV.Y, maxV.Z),
+    }) do
+        local s = proj(c)
+        if s then table.insert(pts, s) end
+    end
+    if #pts < 2 then return 0, 0, 0, 0, false end
+    local lx, ty = pts[1].X, pts[1].Y
+    local rx, by = pts[1].X, pts[1].Y
+    for _, p in ipairs(pts) do
+        if p.X < lx then lx = p.X end
+        if p.X > rx then rx = p.X end
+        if p.Y < ty then ty = p.Y end
+        if p.Y > by then by = p.Y end
+    end
+    return lx, ty, rx, by, true
+end
+
 local function RenderESP()
     Camera = workspace.CurrentCamera
     if not Visuals_Enabled then
@@ -1513,104 +1451,82 @@ local function RenderESP()
 
         -- box + health + text
         if head and humanoid then
-            -- project 4 world-space corners for proper aspect ratio
-            local rootPos = hrp.Position
-            local headTop = head.Position + Vector3.new(0, 0.6, 0)
-            local feetPos = rootPos - Vector3.new(0, 3.2, 0)
-            local camCF = Camera.CFrame
-            local camRight = camCF:VectorToWorldSpace(Vector3.new(1, 0, 0))
+            local minV, maxV = GetCharBounds(char)
+            if minV and maxV then
+                local boxLeft, boxTop, boxRight, boxBot, boxOn = AABB2Screen(minV, maxV)
 
-            -- get width from character's actual bounding half-size projected sideways
-            local charWidth = 2.2 -- R15 default approx shoulder width in studs
-            local halfW = charWidth / 2
+                if boxOn then
+                    local boxH = boxBot - boxTop
+                    local cx = (boxLeft + boxRight) / 2
+                    local boxW = boxRight - boxLeft
 
-            local top, topOn = W2S(headTop)
-            local bot, botOn = W2S(feetPos)
-
-            -- project side points to get accurate width at feet level
-            local leftW, leftOn = W2S(rootPos + camRight * halfW)
-            local rightW, rightOn = W2S(rootPos - camRight * halfW)
-            local screenW = math.abs(rightW.X - leftW.X)
-            if screenW < 10 then screenW = (bot.Y - top.Y) / 2 end -- fallback
-
-            if (ESP_Box or ESP_FillBox or ESP_Health) and topOn and botOn then
-                local boxH = bot.Y - top.Y
-                local cx = top.X
-                local boxLeft = cx - screenW / 2
-                local boxRight = cx + screenW / 2
-                local boxTop = top.Y
-                local boxBot = bot.Y
-
-                -- filled box (background)
-                if ESP_FillBox then
-                    e.boxFill.PointA = Vector2.new(boxLeft, boxTop)
-                    e.boxFill.PointB = Vector2.new(boxRight, boxTop)
-                    e.boxFill.PointC = Vector2.new(boxRight, boxBot)
-                    e.boxFill.PointD = Vector2.new(boxLeft, boxBot)
-                    e.boxFill.Color = color
-                    e.boxFill.Visible = true
-                else
-                    e.boxFill.Visible = false
-                end
-
-                -- box outline
-                if ESP_Box then
-                    e.boxLines[1].From = Vector2.new(boxLeft, boxTop)
-                    e.boxLines[1].To = Vector2.new(boxRight, boxTop)
-                    e.boxLines[2].From = Vector2.new(boxRight, boxTop)
-                    e.boxLines[2].To = Vector2.new(boxRight, boxBot)
-                    e.boxLines[3].From = Vector2.new(boxRight, boxBot)
-                    e.boxLines[3].To = Vector2.new(boxLeft, boxBot)
-                    e.boxLines[4].From = Vector2.new(boxLeft, boxBot)
-                    e.boxLines[4].To = Vector2.new(boxLeft, boxTop)
-                    for _, l in ipairs(e.boxLines) do
-                        l.Visible = true
-                        l.Color = color
-                        l.Thickness = ESP_Thickness
-                    end
-                else
-                    for _, l in ipairs(e.boxLines) do l.Visible = false end
-                end
-
-                -- health bar
-                if ESP_Health then
-                    local barW = 3
-                    local barX = boxLeft - 6
-                    local barH = boxBot - boxTop
-                    local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-
-                    -- bg
-                    e.hpBg.PointA = Vector2.new(barX, boxTop)
-                    e.hpBg.PointB = Vector2.new(barX + barW, boxTop)
-                    e.hpBg.PointC = Vector2.new(barX + barW, boxBot)
-                    e.hpBg.PointD = Vector2.new(barX, boxBot)
-                    e.hpBg.Color = Color3.fromRGB(20, 20, 20)
-                    e.hpBg.Visible = true
-
-                    -- fill
-                    local fill = barH * hp
-                    e.hpBar.PointA = Vector2.new(barX, boxBot - fill)
-                    e.hpBar.PointB = Vector2.new(barX + barW, boxBot - fill)
-                    e.hpBar.PointC = Vector2.new(barX + barW, boxBot)
-                    e.hpBar.PointD = Vector2.new(barX, boxBot)
-                    -- gradient: green > yellow > orange > red
-                    if hp > 0.6 then
-                        e.hpBar.Color = Color3.fromRGB(0, 255, 100)
-                    elseif hp > 0.3 then
-                        e.hpBar.Color = Color3.fromRGB(255, 200, 0)
+                    -- filled box (background)
+                    if ESP_FillBox then
+                        e.boxFill.PointA = Vector2.new(boxLeft, boxTop)
+                        e.boxFill.PointB = Vector2.new(boxRight, boxTop)
+                        e.boxFill.PointC = Vector2.new(boxRight, boxBot)
+                        e.boxFill.PointD = Vector2.new(boxLeft, boxBot)
+                        e.boxFill.Color = color
+                        e.boxFill.Transparency = 0.25
+                        e.boxFill.Visible = true
                     else
-                        e.hpBar.Color = Color3.fromRGB(255, 50, 50)
+                        e.boxFill.Visible = false
                     end
-                    e.hpBar.Visible = true
-                else
-                    e.hpBg.Visible = false
-                    e.hpBar.Visible = false
-                end
 
-                -- name (above box)
-                if topOn then
+                    -- box outline (4 lines)
+                    if ESP_Box then
+                        e.boxLines[1].From = Vector2.new(boxLeft, boxTop)
+                        e.boxLines[1].To = Vector2.new(boxRight, boxTop)
+                        e.boxLines[2].From = Vector2.new(boxRight, boxTop)
+                        e.boxLines[2].To = Vector2.new(boxRight, boxBot)
+                        e.boxLines[3].From = Vector2.new(boxRight, boxBot)
+                        e.boxLines[3].To = Vector2.new(boxLeft, boxBot)
+                        e.boxLines[4].From = Vector2.new(boxLeft, boxBot)
+                        e.boxLines[4].To = Vector2.new(boxLeft, boxTop)
+                        for _, l in ipairs(e.boxLines) do
+                            l.Visible = true
+                            l.Color = color
+                            l.Thickness = ESP_Thickness
+                        end
+                    else
+                        for _, l in ipairs(e.boxLines) do l.Visible = false end
+                    end
+
+                    -- health bar (left side, 4px wide)
+                    if ESP_Health then
+                        local barW = 4
+                        local barX = boxLeft - barW - 3
+                        local barH = boxBot - boxTop
+                        local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+
+                        e.hpBg.PointA = Vector2.new(barX, boxTop)
+                        e.hpBg.PointB = Vector2.new(barX + barW, boxTop)
+                        e.hpBg.PointC = Vector2.new(barX + barW, boxBot)
+                        e.hpBg.PointD = Vector2.new(barX, boxBot)
+                        e.hpBg.Color = Color3.fromRGB(20, 20, 20)
+                        e.hpBg.Visible = true
+
+                        local fill = barH * hp
+                        e.hpBar.PointA = Vector2.new(barX, boxBot - fill)
+                        e.hpBar.PointB = Vector2.new(barX + barW, boxBot - fill)
+                        e.hpBar.PointC = Vector2.new(barX + barW, boxBot)
+                        e.hpBar.PointD = Vector2.new(barX, boxBot)
+                        if hp > 0.6 then
+                            e.hpBar.Color = Color3.fromRGB(0, 255, 100)
+                        elseif hp > 0.3 then
+                            e.hpBar.Color = Color3.fromRGB(255, 200, 0)
+                        else
+                            e.hpBar.Color = Color3.fromRGB(255, 50, 50)
+                        end
+                        e.hpBar.Visible = true
+                    else
+                        e.hpBg.Visible = false
+                        e.hpBar.Visible = false
+                    end
+
+                    -- nametag (above box)
                     if ESP_Name then
-                        e.name.Position = Vector2.new(cx, boxTop - 18)
+                        e.name.Position = Vector2.new(cx, boxTop - 16)
                         e.name.Text = plr.DisplayName
                         e.name.Color = Color3.fromRGB(255, 255, 255)
                         e.name.Size = 14
@@ -1619,7 +1535,7 @@ local function RenderESP()
                         e.name.Visible = false
                     end
 
-                    -- distance + weapon (below box)
+                    -- distance (below box)
                     local infoY = boxBot + 4
                     if ESP_Distance then
                         e.dist.Position = Vector2.new(cx, infoY)
@@ -1631,6 +1547,7 @@ local function RenderESP()
                         e.dist.Visible = false
                     end
 
+                    -- weapon (below distance)
                     if ESP_Weapon then
                         local wName = GetWeaponName(char)
                         if wName ~= "" then
@@ -1646,10 +1563,10 @@ local function RenderESP()
                         e.weapon.Visible = false
                     end
 
-                    -- tracers
+                    -- tracers (bottom center to box bottom)
                     if ESP_Tracer then
-                        local screenW = Camera.ViewportSize.X
-                        e.tracer.From = Vector2.new(screenW / 2, Camera.ViewportSize.Y)
+                        local vp = Camera.ViewportSize
+                        e.tracer.From = Vector2.new(vp.X / 2, vp.Y)
                         e.tracer.To = Vector2.new(cx, boxBot)
                         e.tracer.Visible = true
                         e.tracer.Color = color
@@ -1659,12 +1576,18 @@ local function RenderESP()
                         e.tracer.Visible = false
                     end
                 else
+                    -- box not on screen
+                    e.boxFill.Visible = false
+                    for _, l in ipairs(e.boxLines) do l.Visible = false end
+                    e.hpBg.Visible = false
+                    e.hpBar.Visible = false
                     e.name.Visible = false
                     e.dist.Visible = false
                     e.weapon.Visible = false
                     e.tracer.Visible = false
                 end
             else
+                -- bounds failed
                 e.boxFill.Visible = false
                 for _, l in ipairs(e.boxLines) do l.Visible = false end
                 e.hpBg.Visible = false
@@ -1675,6 +1598,7 @@ local function RenderESP()
                 e.tracer.Visible = false
             end
         else
+            -- no head/humanoid
             e.boxFill.Visible = false
             for _, l in ipairs(e.boxLines) do l.Visible = false end
             e.hpBg.Visible = false
