@@ -36,7 +36,7 @@ function Library:CreateWindow(title, color)
     local WinTypes = {}
     local WindowDragging, SliderDragging, ColorPickerDragging = false, false, false
     local oldcolor = nil
-    local keybind = "RightControl"
+    local keybind = "RightShift"
     local cancbind = false
 
     -- Window Instances
@@ -159,7 +159,7 @@ function Library:CreateWindow(title, color)
                 BracketV2.Enabled = not BracketV2.Enabled
             end
         else
-            if (input.KeyCode == Enum.KeyCode.RightControl) then
+            if (input.KeyCode == Enum.KeyCode[keybind]) then
                 BracketV2.Enabled = not BracketV2.Enabled
             end
         end

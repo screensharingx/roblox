@@ -7,7 +7,7 @@
         Visuals — Skeleton ESP, Health Bars, Tracers
         Sounds  — Hit / Shoot / Kill sounds
     
-    Press RightControl to toggle UI.
+    Press RightShift to toggle UI.
     VERSION: 3
 ]]
 
@@ -669,4 +669,4 @@ end
 
 _G[CLEANUP_KEY] = Unload
 
-print("[neverloose] v" .. VERSION .. " loaded — RightControl to toggle UI")
+print("[neverloose] v" .. VERSION .. " loaded — RightShift to toggle UI")
