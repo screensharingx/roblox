@@ -1178,20 +1178,55 @@ _G.setCustomSkin = function(id)
 end
 
 local R15 = {
-    {"HumanoidRootPart", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
-    {"UpperTorso", "Head"}, {"UpperTorso", "LeftUpperArm"},
-    {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
-    {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"},
-    {"RightLowerArm", "RightHand"}, {"LowerTorso", "LeftUpperLeg"},
-    {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
-    {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"},
+    -- spine
+    {"HumanoidRootPart", "LowerTorso"},
+    {"LowerTorso", "UpperTorso"},
+    {"UpperTorso", "Head"},
+    -- left arm
+    {"UpperTorso", "LeftUpperArm"},
+    {"LeftUpperArm", "LeftLowerArm"},
+    {"LeftLowerArm", "LeftHand"},
+    -- right arm
+    {"UpperTorso", "RightUpperArm"},
+    {"RightUpperArm", "RightLowerArm"},
+    {"RightLowerArm", "RightHand"},
+    -- left leg
+    {"LowerTorso", "LeftUpperLeg"},
+    {"LeftUpperLeg", "LeftLowerLeg"},
+    {"LeftLowerLeg", "LeftFoot"},
+    -- right leg
+    {"LowerTorso", "RightUpperLeg"},
+    {"RightUpperLeg", "RightLowerLeg"},
     {"RightLowerLeg", "RightFoot"},
+    -- extra detail: neck cross, shoulder joints, hip joints, knee joints, spine mid
+    {"Head", "UpperTorso"},        -- neck (thicker bone feel)
+    {"UpperTorso", "LeftUpperArm"},-- left shoulder joint
+    {"UpperTorso", "RightUpperArm"},-- right shoulder joint
+    {"LowerTorso", "LeftUpperLeg"},-- left hip joint
+    {"LowerTorso", "RightUpperLeg"},-- right hip joint
+    {"LeftUpperLeg", "LeftLowerLeg"},  -- left knee
+    {"RightUpperLeg", "RightLowerLeg"}, -- right knee
+    {"LeftUpperArm", "LeftLowerArm"},   -- left elbow
+    {"RightUpperArm", "RightLowerArm"}, -- right elbow
+    {"LeftLowerLeg", "LeftFoot"},       -- left ankle
+    {"RightLowerLeg", "RightFoot"},     -- right ankle
+    {"LeftLowerArm", "LeftHand"},       -- left wrist
+    {"RightLowerArm", "RightHand"},     -- right wrist
 }
 
 local R6 = {
-    {"HumanoidRootPart", "Torso"}, {"Torso", "Head"},
-    {"Torso", "Left Arm"}, {"Torso", "Right Arm"},
-    {"Torso", "Left Leg"}, {"Torso", "Right Leg"},
+    {"HumanoidRootPart", "Torso"},
+    {"Torso", "Head"},
+    {"Torso", "Left Arm"},
+    {"Torso", "Right Arm"},
+    {"Torso", "Left Leg"},
+    {"Torso", "Right Leg"},
+    -- R6 extras
+    {"Head", "Torso"},
+    {"Torso", "Left Arm"},
+    {"Torso", "Right Arm"},
+    {"Left Leg", "Torso"},
+    {"Right Leg", "Torso"},
 }
 
 local function W2S(pos)
@@ -1257,7 +1292,7 @@ local function CreateESP(player)
             dist = nil,
             weapon = nil,
         }
-        for i = 1, 15 do data.lines[i] = MakeLine() end
+        for i = 1, 28 do data.lines[i] = MakeLine() end
         for i = 1, 4 do data.boxLines[i] = MakeLine() end
         data.boxFill = MakeQuad()
         data.boxFill.Filled = true
@@ -1311,11 +1346,23 @@ local function GetWeaponName(char)
     return ""
 end
 
--- compute world-space AABB from all BaseParts in a character
+-- compute world-space AABB from body parts only (no tools/accessories/hats)
+local BodyPartNames = {
+    Head = true, UpperTorso = true, LowerTorso = true, Torso = true,
+    LeftUpperArm = true, LeftLowerArm = true, LeftHand = true,
+    RightUpperArm = true, RightLowerArm = true, RightHand = true,
+    LeftUpperLeg = true, LeftLowerLeg = true, LeftFoot = true,
+    RightUpperLeg = true, RightLowerLeg = true, RightFoot = true,
+    HumanoidRootPart = true,
+    -- R6
+    ["Left Arm"] = true, ["Right Arm"] = true,
+    ["Left Leg"] = true, ["Right Leg"] = true,
+}
+
 local function GetCharBounds(char)
     local minV, maxV
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
+    for _, part in ipairs(char:GetChildren()) do
+        if part:IsA("BasePart") and BodyPartNames[part.Name] then
             local p = part.Position
             local s = part.Size
             local corners = {
@@ -1438,13 +1485,13 @@ local function RenderESP()
                     e.lines[i].From = sa
                     e.lines[i].To = sb
                     e.lines[i].Visible = oa and ob
-                    e.lines[i].Color = Color3.fromRGB(255, 255, 255)
+                    e.lines[i].Color = color
                     e.lines[i].Thickness = ESP_Thickness
                 else
                     e.lines[i].Visible = false
                 end
             end
-            for i = count + 1, 15 do e.lines[i].Visible = false end
+            for i = count + 1, #e.lines do e.lines[i].Visible = false end
         else
             for _, l in ipairs(e.lines) do l.Visible = false end
         end
