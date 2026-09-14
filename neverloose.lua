@@ -158,6 +158,174 @@ local SoundsTab   = Window:CreateTab("Sounds")
 -- ═══════════════════════════════════════════════════
 
 -- ═══════════════════════════════════════════════════
+-- ESP PREVIEW — floating panel outside menu
+-- ═══════════════════════════════════════════════════
+do
+    local accent    = Color3.fromRGB(0, 255, 255)
+    local boxColor  = Color3.fromRGB(0, 255, 0)
+    local skelColor = Color3.fromRGB(255, 255, 255)
+    local hpHigh    = Color3.fromRGB(0, 255, 0)
+
+    local preview = Instance.new("Frame")
+    preview.Name = "ESPPreview"
+    preview.Parent = ScreenGui
+    preview.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+    preview.BorderColor3 = Color3.fromRGB(8, 8, 8)
+    preview.Size = UDim2.new(0, 220, 0, 340)
+    preview.ClipsDescendants = true
+    Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 6)
+
+    -- position to the right of the core window
+    local core = ScreenGui:FindFirstChild("core", true)
+    if core then
+        preview.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
+        -- keep it there if window moves
+        game:GetService("RunService").RenderStepped:Connect(function()
+            preview.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
+        end)
+    else
+        preview.Position = UDim2.new(0.5, 50, 0.14, 0)
+    end
+
+    local inner = Instance.new("Frame")
+    inner.Parent = preview
+    inner.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    inner.BorderSizePixel = 0
+    inner.Position = UDim2.new(0, 1, 0, 1)
+    inner.Size = UDim2.new(1, -2, 1, -2)
+    Instance.new("UICorner", inner).CornerRadius = UDim.new(0, 5)
+
+    local title = Instance.new("TextLabel")
+    title.Parent = inner
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.new(0, 10, 0, 6)
+    title.Size = UDim2.new(1, -20, 0, 16)
+    title.Font = Enum.Font.GothamBold
+    title.Text = "ESP Preview"
+    title.TextColor3 = accent
+    title.TextSize = 13
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    local canvas = Instance.new("Frame")
+    canvas.Parent = inner
+    canvas.BackgroundTransparency = 1
+    canvas.Position = UDim2.new(0, 0, 0, 24)
+    canvas.Size = UDim2.new(1, 0, 1, -30)
+
+    -- helpers
+    local function mkLine(parent, p, s, rot, col)
+        local l = Instance.new("Frame")
+        l.Parent = parent
+        l.AnchorPoint = Vector2.new(0.5, 0.5)
+        l.BackgroundColor3 = col
+        l.BorderSizePixel = 0
+        l.Position = p
+        l.Size = s
+        l.Rotation = rot or 0
+        l.ZIndex = 5
+        return l
+    end
+
+    local function mkText(parent, p, s, txt, col, sz, align)
+        local t = Instance.new("TextLabel")
+        t.Parent = parent
+        t.BackgroundTransparency = 1
+        t.Position = p
+        t.Size = s
+        t.Font = Enum.Font.Gotham
+        t.Text = txt
+        t.TextColor3 = col
+        t.TextSize = sz or 11
+        t.TextStrokeTransparency = 0.3
+        t.ZIndex = 10
+        t.TextXAlignment = align or Enum.TextXAlignment.Center
+        return t
+    end
+
+    local cx = 0.5
+    local headY  = 0.12
+    local neckY  = 0.21
+    local shY    = 0.25
+    local hipY   = 0.52
+    local kneeY  = 0.72
+
+    -- head
+    local head = Instance.new("Frame")
+    head.Parent = canvas
+    head.AnchorPoint = Vector2.new(0.5, 0.5)
+    head.BackgroundColor3 = skelColor
+    head.BackgroundTransparency = 0.3
+    head.Shape = Enum.FrameType.Circle
+    head.Position = UDim2.new(cx, 0, headY, 0)
+    head.Size = UDim2.new(0, 18, 0, 18)
+    head.ZIndex = 4
+
+    -- spine
+    mkLine(canvas, UDim2.new(cx, 0, (neckY + hipY) / 2, 0), UDim2.new(0, 2, 0, (hipY - neckY) * 280), 0, skelColor)
+    -- shoulders
+    mkLine(canvas, UDim2.new(cx, 0, shY, 0), UDim2.new(0, 36, 0, 2), 0, skelColor)
+    -- left arm
+    mkLine(canvas, UDim2.new(cx - 0.04, 0, shY, 0), UDim2.new(0, 2, 0, 32), 25, skelColor)
+    mkLine(canvas, UDim2.new(cx - 0.058, 0, shY + 0.06, 0), UDim2.new(0, 2, 0, 28), 5, skelColor)
+    -- right arm
+    mkLine(canvas, UDim2.new(cx + 0.04, 0, shY, 0), UDim2.new(0, 2, 0, 32), -25, skelColor)
+    mkLine(canvas, UDim2.new(cx + 0.058, 0, shY + 0.06, 0), UDim2.new(0, 2, 0, 28), -5, skelColor)
+    -- hips
+    mkLine(canvas, UDim2.new(cx, 0, hipY, 0), UDim2.new(0, 22, 0, 2), 0, skelColor)
+    -- left leg
+    mkLine(canvas, UDim2.new(cx - 0.028, 0, hipY, 0), UDim2.new(0, 2, 0, 50), 8, skelColor)
+    mkLine(canvas, UDim2.new(cx - 0.038, 0, kneeY, 0), UDim2.new(0, 2, 0, 50), 3, skelColor)
+    -- right leg
+    mkLine(canvas, UDim2.new(cx + 0.028, 0, hipY, 0), UDim2.new(0, 2, 0, 50), -8, skelColor)
+    mkLine(canvas, UDim2.new(cx + 0.038, 0, kneeY, 0), UDim2.new(0, 2, 0, 50), -3, skelColor)
+
+    -- box
+    local bx = cx - 0.11
+    local by = headY - 0.06
+    local bw = 0.22
+    local bh = 0.86
+    mkLine(canvas, UDim2.new(cx, 0, by, 0), UDim2.new(bw, 0, 0, 2), 0, boxColor)
+    mkLine(canvas, UDim2.new(cx, 0, by + bh, 0), UDim2.new(bw, 0, 0, 2), 0, boxColor)
+    mkLine(canvas, UDim2.new(bx, 0, (by + by + bh) / 2, 0), UDim2.new(0, 2, 0, bh * 280), 0, boxColor)
+    mkLine(canvas, UDim2.new(bx + bw, 0, (by + by + bh) / 2, 0), UDim2.new(0, 2, 0, bh * 280), 0, boxColor)
+
+    -- health bar
+    local hbX = bx - 0.028
+    local hbTop = by + 0.01
+    local hbBot = by + bh - 0.01
+    local hbH = hbBot - hbTop
+
+    local hbBg = Instance.new("Frame")
+    hbBg.Parent = canvas
+    hbBg.AnchorPoint = Vector2.new(0.5, 0)
+    hbBg.Position = UDim2.new(hbX, 0, hbTop, 0)
+    hbBg.Size = UDim2.new(0.012, 0, hbH, 0)
+    hbBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    hbBg.BorderSizePixel = 0
+    hbBg.ZIndex = 6
+
+    local hbFill = Instance.new("Frame")
+    hbFill.Parent = hbBg
+    hbFill.AnchorPoint = Vector2.new(0, 1)
+    hbFill.Position = UDim2.new(0, 0, 1, 0)
+    hbFill.Size = UDim2.new(1, 0, 0.72, 0)
+    hbFill.BackgroundColor3 = hpHigh
+    hbFill.BorderSizePixel = 0
+    hbFill.ZIndex = 7
+
+    mkText(canvas, UDim2.new(hbX - 0.03, 0, hbTop - 0.03, 0), UDim2.new(0, 28, 0, 12), "72", hpHigh, 10)
+
+    -- name
+    mkText(canvas, UDim2.new(cx, 0, by - 0.04, 0), UDim2.new(0, 120, 0, 14), "PlayerName", Color3.fromRGB(255, 255, 255), 12)
+    -- distance
+    mkText(canvas, UDim2.new(cx, 0, by + bh + 0.01, 0), UDim2.new(0, 60, 0, 12), "[24m]", Color3.fromRGB(180, 180, 180), 10)
+    -- weapon
+    mkText(canvas, UDim2.new(cx, 0, by + bh + 0.03, 0), UDim2.new(0, 80, 0, 12), "AK-47", accent, 9)
+    -- tracer
+    mkLine(canvas, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 1, 0, (1 - (by + bh)) * 280 - 8), 0, accent)
+end
+
+-- ═══════════════════════════════════════════════════
 -- COMBAT TAB
 -- ═══════════════════════════════════════════════════
 local TrigGroup = CombatTab:CreateGroupbox("Triggerbot")
@@ -197,16 +365,6 @@ end)
 ESPGroup:CreateToggle("Show Health Bar", function(v)
     ESP_ShowHealth = v
 end)
-
--- ESP preview on right side
-local ESPPreviewGroup = VisualsTab:CreateGroupbox("ESP Preview", "Right")
-ESPPreviewGroup:CreateESPPreview({
-    accent = Color3.fromRGB(0, 255, 255),
-    boxColor = Color3.fromRGB(0, 255, 0),
-    skeletonColor = Color3.fromRGB(255, 255, 255),
-    healthHigh = Color3.fromRGB(0, 255, 0),
-    healthLow = Color3.fromRGB(255, 0, 0),
-})
 
 ESPGroup:CreateToggle("Show Tracers", function(v)
     ESP_ShowTracer = v
