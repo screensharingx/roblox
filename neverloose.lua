@@ -132,6 +132,7 @@ local ESP_HideLocal    = true
 local ESP_TeamCheck    = false
 
 local DESkinID   = "rbxassetid://0"
+local DESkinName = "Default" -- tracks which skin is selected by name for RS lookup
 
 local Connections = {}
 local ESP = {}
@@ -300,37 +301,31 @@ end)
 -- ═══════════════════════════════════════════════════
 local SkinsTab = Window:CreateTab("Skins")
 
--- known skins from lobby shop + defaults
-local DESkins = {
-    ["Default"]           = "rbxassetid://110831261114219",
-    ["Carbon Stealth"]    = "rbxassetid://122238641950780",
-    ["Blizzard"]          = "rbxassetid://7797622159",
+-- all DE skins from CaseConfig (forAllGun = true)
+local DESkinList = {
+    "Default",
+    "Burned", "404", "Caution",
+    "Plasma", "Magma", "Carbon Stealth",
+    "Blaze",
+    "Dual Tone", "Redline",
+    "Whiteout", "Artic", "Coldfire", "Purple Phantom", "Blizzard", "Emerald", "Ruby Swirl",
+    "Pixelated Havoc", "Inferno Star", "Shadow",
+    "Ghost Walker", "Dark Presence", "Frankenstrat",
+    "Candy Clouds",
+    "Purple Storm", "Royal Gold", "Sapphire",
+    "Cosmic Flare", "GoldStrike", "Red Rage", "Sapphire Strike",
+    "Crimson",
 }
-
--- also try to discover skins from lobby at runtime
-pcall(function()
-    local shopModel = workspace.Lobby.MoreLobbyItems.ShopModel
-    if shopModel then
-        for _, skinModel in ipairs(shopModel:GetChildren()) do
-            if skinModel:IsA("Model") and not DESkins[skinModel.Name] then
-                for _, desc in ipairs(skinModel:GetDescendants()) do
-                    if desc:IsA("Texture") then
-                        DESkins[skinModel.Name] = desc.Texture
-                        break
-                    end
-                end
-            end
-        end
-    end
-end)
-
-local DESkinNames = {}
-for name in pairs(DESkins) do DESkinNames[#DESkinNames+1] = name end
-table.sort(DESkinNames)
+table.sort(DESkinList)
 
 local DESkinGroup = SkinsTab:CreateGroupbox("Desert Eagle Skins")
-DESkinGroup:CreateDropdown("Skin", DESkinNames, function(v)
-    DESkinID = DESkins[v] or "rbxassetid://0"
+DESkinGroup:CreateDropdown("Skin", DESkinList, function(v)
+    DESkinName = v
+    if v == "Default" then
+        DESkinID = "rbxassetid://110831261114219"
+    else
+        DESkinID = "lookup" -- signals the engine to look up from RS.Textures
+    end
     Notify("Skins", "DE: " .. v, 2)
 end):SetOption("Default")
 
@@ -377,6 +372,7 @@ local CustomSkinGroup = SkinsTab:CreateGroupbox("Custom Skin ID")
 CreateTextbox(CustomSkinGroup, "Texture ID", "rbxassetid://", function(v)
     if v and v ~= "" and v ~= "rbxassetid://" then
         DESkinID = v
+        DESkinName = "Custom"
         Notify("Skins", "Custom skin applied", 2)
     end
 end)
@@ -645,40 +641,116 @@ local function ScanAndReplace()
 end
 
 -- ═══════════════════════════════════════════════════
--- SKIN ENGINE — swaps Desert Eagle TextureImage textures
+-- SKIN ENGINE — clones textures from RS.Textures onto weapon
+-- mirrors the game's applyDeagleSkinToViewModel logic
 -- ═══════════════════════════════════════════════════
-local function FindWeaponModel(weaponName)
-    -- check character first
-    local char = LP.Character
-    if char then
-        local tool = char:FindFirstChild(weaponName)
-        if tool then
-            return tool:FindFirstChild(weaponName) -- the Model inside the Tool
+local RS = game:GetService("ReplicatedStorage")
+local Textures = RS:FindFirstChild("Textures")
+
+local function isForTexturePart(p)
+    if not p:IsA("BasePart") then return false end
+    if p.Name == "ForTexture" then return true end
+    return p.Name:match("^ForTexture%d+$") ~= nil
+end
+
+local function clearTexturePart(part)
+    for _, v in ipairs(part:GetChildren()) do
+        if v:IsA("Texture") or v:IsA("Decal") then
+            v:Destroy()
         end
     end
-    -- then backpack
-    local bp = LP:FindFirstChild("Backpack")
-    if bp then
-        local tool = bp:FindFirstChild(weaponName)
-        if tool then
-            return tool:FindFirstChild(weaponName)
+end
+
+local function applyTextureToPart(part, texSource)
+    if not texSource then return end
+    local faces = {
+        Enum.NormalId.Front, Enum.NormalId.Back,
+        Enum.NormalId.Top, Enum.NormalId.Bottom,
+        Enum.NormalId.Left, Enum.NormalId.Right,
+    }
+    local function applyOne(tex)
+        if not (tex:IsA("Texture") or tex:IsA("Decal")) then return end
+        for _, face in ipairs(faces) do
+            local clone = tex:Clone()
+            clone.Face = face
+            clone.Parent = part
+        end
+    end
+    if texSource:IsA("Texture") or texSource:IsA("Decal") then
+        applyOne(texSource)
+    else
+        for _, child in ipairs(texSource:GetChildren()) do
+            applyOne(child)
+        end
+    end
+end
+
+local function getTextureImageFolder(weaponName, skinName)
+    if not Textures then return nil end
+    local weaponFolder = Textures:FindFirstChild(weaponName)
+    if not weaponFolder then return nil end
+    -- search all rarity folders for the skin name
+    for _, rarityFolder in ipairs(weaponFolder:GetChildren()) do
+        if rarityFolder:IsA("Folder") then
+            local skinFolder = rarityFolder:FindFirstChild(skinName)
+            if skinFolder then
+                return skinFolder:FindFirstChild("TextureImage")
+            end
         end
     end
     return nil
 end
 
+local function FindWeaponModel(weaponName)
+    local char = LP.Character
+    if char then
+        local tool = char:FindFirstChild(weaponName)
+        if tool then return tool:FindFirstChild(weaponName) end
+    end
+    local bp = LP:FindFirstChild("Backpack")
+    if bp then
+        local tool = bp:FindFirstChild(weaponName)
+        if tool then return tool:FindFirstChild(weaponName) end
+    end
+    return nil
+end
+
 local function ApplySkins()
-    if DESkinID == "rbxassetid://0" then return end
+    if DESkinName == "Default" then return end
 
     local model = FindWeaponModel("Desert Eagle")
     if not model then return end
 
+    -- clear all existing textures on ForTexture parts
     for _, v in ipairs(model:GetDescendants()) do
-        if v:IsA("Texture") and v.Name == "TextureImage" then
-            if v.Texture ~= DESkinID then
-                v.Texture = DESkinID
+        if isForTexturePart(v) then
+            clearTexturePart(v)
+        end
+    end
+
+    -- get the skin texture source
+    local texSource = nil
+    if DESkinID == "lookup" then
+        texSource = getTextureImageFolder("Desert Eagle", DESkinName)
+    end
+
+    -- apply textures to all ForTexture parts
+    if texSource then
+        for _, v in ipairs(model:GetDescendants()) do
+            if isForTexturePart(v) then
+                applyTextureToPart(v, texSource)
             end
         end
+    elseif DESkinID ~= "lookup" then
+        -- custom ID: create a simple texture and apply
+        local fakeTex = Instance.new("Texture")
+        fakeTex.Texture = DESkinID
+        for _, v in ipairs(model:GetDescendants()) do
+            if isForTexturePart(v) then
+                applyTextureToPart(v, fakeTex)
+            end
+        end
+        fakeTex:Destroy()
     end
 end
 
