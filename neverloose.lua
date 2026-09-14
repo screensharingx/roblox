@@ -10,8 +10,8 @@ local RS           = game:GetService("ReplicatedStorage")
 local LP           = Players.LocalPlayer
 local Camera       = workspace.CurrentCamera
 
-local VERSION    = 5
-local GLOBAL_KEY = "_neverloose_v"
+local VERSION     = 6
+local GLOBAL_KEY  = "_neverloose_v"
 local CLEANUP_KEY = "_neverloose_cleanup"
 
 if _G[CLEANUP_KEY] and type(_G[CLEANUP_KEY]) == "function" then
@@ -90,16 +90,27 @@ local function Notify(title, text, duration)
     end)
 end
 
-local ESP_Enabled    = true
+local Combat_Enabled = true
+local Visuals_Enabled = true
+local Sounds_Enabled = true
+local Skins_Enabled = true
+
 local Trig_Enabled   = true
 local Trig_MaxDist   = 500
 local Trig_Delay     = 0
+
+local ESP_Skeleton   = true
+local ESP_Box        = true
+local ESP_Name       = true
+local ESP_Health     = true
+local ESP_Distance   = true
+local ESP_Weapon     = true
+local ESP_Tracer     = false
 local ESP_Thickness  = 1
 local ESP_MaxDist    = 2000
-local ESP_ShowHealth = true
-local ESP_ShowTracer = false
 local ESP_HideLocal  = true
 local ESP_TeamCheck  = false
+
 local DESkinName     = "Default"
 local DESkinID       = "rbxassetid://0"
 local KnifeSkinName  = "Default"
@@ -115,7 +126,6 @@ local ActiveTabIndex = 3
 local Window, ScreenGui = Library:CreateWindow("neverloose", Color3.fromRGB(0, 255, 255))
 UIScreen = ScreenGui
 
-local MenuTab    = Window:CreateTab("Menu")
 local CombatTab  = Window:CreateTab("Combat")
 local VisualsTab = Window:CreateTab("Visuals")
 local SoundsTab  = Window:CreateTab("Sounds")
@@ -124,10 +134,16 @@ local SkinsTab   = Window:CreateTab("Skins")
 local function DetectActiveTab()
     local core = ScreenGui:FindFirstChild("core", true)
     if not core then return end
-    local container = core:FindFirstChild("container", true)
-    if not container then return end
+    local mainContainer = nil
+    for _, v in ipairs(core:GetDescendants()) do
+        if v:IsA("Frame") and v.Name == "container" and v.Parent and v.Parent:IsA("Frame") and v.Parent.Name == "inlinecore" then
+            mainContainer = v
+            break
+        end
+    end
+    if not mainContainer then return end
     local idx = 0
-    for _, child in ipairs(container:GetChildren()) do
+    for _, child in ipairs(mainContainer:GetChildren()) do
         if child.Name == "container" and child:IsA("Frame") then
             idx = idx + 1
             if child.Visible then
@@ -277,28 +293,34 @@ do
     mkLine(canvas, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 1, 0, (1 - (by + bh)) * 280 - 8), 0, accent)
 end
 
-local TrigGroup = CombatTab:CreateGroupbox("Triggerbot")
-TrigGroup:CreateToggle("Enable Triggerbot", function(v)
-    Trig_Enabled = v
-    Notify("Triggerbot", v and "ON" or "OFF", 2)
+local CombatGroup = CombatTab:CreateGroupbox("Triggerbot")
+CombatGroup:CreateToggle("Enable Combat", function(v)
+    Combat_Enabled = v
+    Notify("Combat", v and "ON" or "OFF", 2)
 end):CreateKeyBind("T")
-TrigGroup:CreateSlider("Max Distance", 100, 2000, 500, function(v) Trig_MaxDist = v end)
-TrigGroup:CreateSlider("Delay (ms)", 0, 200, 0, function(v) Trig_Delay = v end)
+CombatGroup:CreateToggle("Triggerbot", function(v) Trig_Enabled = v end)
+CombatGroup:CreateSlider("Max Distance", 100, 2000, 500, function(v) Trig_MaxDist = v end)
+CombatGroup:CreateSlider("Delay (ms)", 0, 200, 0, function(v) Trig_Delay = v end)
 
-local ESPGroup = VisualsTab:CreateGroupbox("Skeleton ESP")
-ESPGroup:CreateToggle("Enable ESP", function(v)
-    ESP_Enabled = v
+local VisualsGroup = VisualsTab:CreateGroupbox("Visuals")
+VisualsGroup:CreateToggle("Enable Visuals", function(v)
+    Visuals_Enabled = v
     if not v then
-        for p, _ in pairs(ESP) do DestroyESP(p) end
+        for p, _ in pairs(ESP) do pcall(DestroyESP, p) end
     end
-    Notify("Skeleton ESP", v and "ON" or "OFF", 2)
+    Notify("Visuals", v and "ON" or "OFF", 2)
 end):CreateKeyBind("P")
-ESPGroup:CreateSlider("Thickness", 1, 5, 1, function(v) ESP_Thickness = v end)
-ESPGroup:CreateSlider("Max Distance", 500, 5000, 2000, function(v) ESP_MaxDist = v end)
-ESPGroup:CreateToggle("Show Health Bar", function(v) ESP_ShowHealth = v end)
-ESPGroup:CreateToggle("Show Tracers", function(v) ESP_ShowTracer = v end)
-ESPGroup:CreateToggle("Hide Local Player", function(v) ESP_HideLocal = v end)
-ESPGroup:CreateToggle("Team Check", function(v) ESP_TeamCheck = v end)
+VisualsGroup:CreateToggle("Skeleton", function(v) ESP_Skeleton = v end)
+VisualsGroup:CreateToggle("Box", function(v) ESP_Box = v end)
+VisualsGroup:CreateToggle("Nametag", function(v) ESP_Name = v end)
+VisualsGroup:CreateToggle("Health Bar", function(v) ESP_Health = v end)
+VisualsGroup:CreateToggle("Distance", function(v) ESP_Distance = v end)
+VisualsGroup:CreateToggle("Weapon", function(v) ESP_Weapon = v end)
+VisualsGroup:CreateToggle("Tracers", function(v) ESP_Tracer = v end)
+VisualsGroup:CreateSlider("Thickness", 1, 5, 1, function(v) ESP_Thickness = v end)
+VisualsGroup:CreateSlider("Max Distance", 500, 5000, 2000, function(v) ESP_MaxDist = v end)
+VisualsGroup:CreateToggle("Hide Local Player", function(v) ESP_HideLocal = v end)
+VisualsGroup:CreateToggle("Team Check", function(v) ESP_TeamCheck = v end)
 
 local HitSounds = {
     ["None"]        = "rbxassetid://0",
@@ -313,7 +335,6 @@ local HitSounds = {
     ["Osu"]         = "rbxassetid://7149919358",
     ["Tf2"]         = "rbxassetid://296102734",
     ["Tf2 Pan"]     = "rbxassetid://3431749479",
-    ["M55solix"]    = "rbxassetid://364942410",
     ["Slap"]        = "rbxassetid://4888372697",
     ["Minecraft"]   = "rbxassetid://7273736372",
     ["Jojo"]        = "rbxassetid://6787514780",
@@ -350,20 +371,20 @@ local function BuildNames(tbl)
     return names
 end
 
-local HitNames   = BuildNames(HitSounds)
-local ShootNames = BuildNames(ShootSounds)
-local KillNames  = BuildNames(KillSounds)
-
-local SoundGroup = SoundsTab:CreateGroupbox("Preset Sounds")
-SoundGroup:CreateDropdown("Hit Sound", HitNames, function(v)
+local SoundsGroup = SoundsTab:CreateGroupbox("Preset Sounds")
+SoundsGroup:CreateToggle("Enable Sounds", function(v)
+    Sounds_Enabled = v
+    Notify("Sounds", v and "ON" or "OFF", 2)
+end)
+SoundsGroup:CreateDropdown("Hit Sound", BuildNames(HitSounds), function(v)
     HitSoundID = HitSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Hit: " .. v, 2)
 end):SetOption("None")
-SoundGroup:CreateDropdown("Shoot Sound", ShootNames, function(v)
+SoundsGroup:CreateDropdown("Shoot Sound", BuildNames(ShootSounds), function(v)
     ShootSoundID = ShootSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Shoot: " .. v, 2)
 end):SetOption("None")
-SoundGroup:CreateDropdown("Kill Sound", KillNames, function(v)
+SoundsGroup:CreateDropdown("Kill Sound", BuildNames(KillSounds), function(v)
     KillSoundID = KillSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Kill: " .. v, 2)
 end):SetOption("None")
@@ -392,8 +413,12 @@ local DESkinList = {
 }
 table.sort(DESkinList)
 
-local DESkinGroup = SkinsTab:CreateGroupbox("Desert Eagle Skins")
-DESkinGroup:CreateDropdown("Skin", DESkinList, function(v)
+local SkinsGroup = SkinsTab:CreateGroupbox("Desert Eagle")
+SkinsGroup:CreateToggle("Enable Skins", function(v)
+    Skins_Enabled = v
+    Notify("Skins", v and "ON" or "OFF", 2)
+end)
+SkinsGroup:CreateDropdown("Skin", DESkinList, function(v)
     DESkinName = v
     DESkinID = (v == "Default") and "rbxassetid://110831261114219" or "lookup"
     Notify("Skins", "DE: " .. v, 2)
@@ -421,7 +446,7 @@ pcall(function()
 end)
 table.sort(KnifeSkinList)
 
-local KnifeGroup = SkinsTab:CreateGroupbox("Knife Skins")
+local KnifeGroup = SkinsTab:CreateGroupbox("Knife")
 KnifeGroup:CreateDropdown("Skin", KnifeSkinList, function(v)
     KnifeSkinName = v
     Notify("Skins", "Knife: " .. v, 2)
@@ -517,8 +542,8 @@ local function MakeQuad()
     local q = Drawing.new("Quad")
     q.Visible = false
     q.Color = Color3.fromRGB(0, 255, 255)
-    q.Filled = true
-    q.Thickness = 0
+    q.Filled = false
+    q.Thickness = ESP_Thickness
     q.Transparency = 1
     q.ZIndex = 998
     return q
@@ -539,24 +564,40 @@ end
 
 local function CreateESP(player)
     if ESP[player] then return end
-    local e = {lines = {}, hpBar = nil, hpBg = nil, tracer = nil, name = nil, dist = nil, weapon = nil}
-    for i = 1, 15 do e.lines[i] = MakeLine() end
-    e.tracer = MakeLine()
-    e.hpBg = MakeQuad()
-    e.hpBar = MakeQuad()
-    e.name = MakeTextDrawing()
-    e.dist = MakeTextDrawing()
-    e.dist.Size = 12
-    e.weapon = MakeTextDrawing()
-    e.weapon.Size = 11
-    e.weapon.Color = Color3.fromRGB(0, 255, 255)
-    ESP[player] = e
+    local ok, e = pcall(function()
+        local data = {
+            lines = {},
+            boxLines = {},
+            hpBar = nil,
+            hpBg = nil,
+            tracer = nil,
+            name = nil,
+            dist = nil,
+            weapon = nil,
+        }
+        for i = 1, 15 do data.lines[i] = MakeLine() end
+        for i = 1, 4 do data.boxLines[i] = MakeLine() end
+        data.tracer = MakeLine()
+        data.hpBg = MakeQuad()
+        data.hpBar = MakeQuad()
+        data.name = MakeTextDrawing()
+        data.dist = MakeTextDrawing()
+        data.dist.Size = 12
+        data.weapon = MakeTextDrawing()
+        data.weapon.Size = 11
+        data.weapon.Color = Color3.fromRGB(0, 255, 255)
+        return data
+    end)
+    if ok and e then
+        ESP[player] = e
+    end
 end
 
 function DestroyESP(player)
     local e = ESP[player]
     if not e then return end
     for _, l in ipairs(e.lines) do pcall(function() l:Remove() end) end
+    for _, l in ipairs(e.boxLines) do pcall(function() l:Remove() end) end
     pcall(function() e.tracer:Remove() end)
     pcall(function() e.hpBg:Remove() end)
     pcall(function() e.hpBar:Remove() end)
@@ -568,6 +609,7 @@ end
 
 local function HideESP(e)
     for _, l in ipairs(e.lines) do l.Visible = false end
+    for _, l in ipairs(e.boxLines) do l.Visible = false end
     e.tracer.Visible = false
     e.hpBg.Visible = false
     e.hpBar.Visible = false
@@ -584,6 +626,11 @@ end
 
 local function RenderESP()
     Camera = workspace.CurrentCamera
+    if not Visuals_Enabled then
+        for _, e in pairs(ESP) do HideESP(e) end
+        return
+    end
+
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LP and ESP_HideLocal then
             if ESP[plr] then DestroyESP(plr) end
@@ -597,17 +644,17 @@ local function RenderESP()
 
         local char = plr.Character
         local bones = char and GetBones(char)
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local head = char and char:FindFirstChild("Head")
         local show = false
         local dist = 0
 
-        if ESP_Enabled and bones and IsAlive(char) then
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local _, on, d = W2S(hrp.Position)
-                if on and d <= ESP_MaxDist then
-                    show = true
-                    dist = math.floor(d)
-                end
+        if bones and IsAlive(char) and hrp then
+            local _, on, d = W2S(hrp.Position)
+            if on and d <= ESP_MaxDist then
+                show = true
+                dist = math.floor(d)
             end
         end
 
@@ -619,32 +666,63 @@ local function RenderESP()
 
         if not e then CreateESP(plr) end
         e = ESP[plr]
-        local count = #bones
+        if not e then continue end
 
-        for i = 1, count do
-            local a = char:FindFirstChild(bones[i][1])
-            local b = char:FindFirstChild(bones[i][2])
-            if a and b then
-                local sa, oa = W2S(a.Position)
-                local sb, ob = W2S(b.Position)
-                e.lines[i].From = sa
-                e.lines[i].To = sb
-                e.lines[i].Visible = oa and ob
-                e.lines[i].Color = Color3.fromRGB(0, 255, 255)
-                e.lines[i].Thickness = ESP_Thickness
-            else
-                e.lines[i].Visible = false
+        local color = Color3.fromRGB(0, 255, 255)
+
+        if ESP_Skeleton then
+            local count = #bones
+            for i = 1, count do
+                local a = char:FindFirstChild(bones[i][1])
+                local b = char:FindFirstChild(bones[i][2])
+                if a and b then
+                    local sa, oa = W2S(a.Position)
+                    local sb, ob = W2S(b.Position)
+                    e.lines[i].From = sa
+                    e.lines[i].To = sb
+                    e.lines[i].Visible = oa and ob
+                    e.lines[i].Color = color
+                    e.lines[i].Thickness = ESP_Thickness
+                else
+                    e.lines[i].Visible = false
+                end
             end
+            for i = count + 1, 15 do e.lines[i].Visible = false end
+        else
+            for _, l in ipairs(e.lines) do l.Visible = false end
         end
-        for i = count + 1, 15 do e.lines[i].Visible = false end
 
-        local head = char:FindFirstChild("Head")
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
         if head and humanoid then
             local top, topOn = W2S(head.Position + Vector3.new(0, 0.6, 0))
             local bot, botOn = W2S(head.Position + Vector3.new(0, -3.2, 0))
 
-            if ESP_ShowHealth and topOn and botOn then
+            if ESP_Box and topOn and botOn then
+                local boxH = bot.Y - top.Y
+                local boxW = boxH / 2
+                local boxCenterX = top.X
+                local boxLeft = boxCenterX - boxW / 2
+                local boxRight = boxCenterX + boxW / 2
+                local boxTop = top.Y
+                local boxBot = bot.Y
+
+                e.boxLines[1].From = Vector2.new(boxLeft, boxTop)
+                e.boxLines[1].To = Vector2.new(boxRight, boxTop)
+                e.boxLines[2].From = Vector2.new(boxRight, boxTop)
+                e.boxLines[2].To = Vector2.new(boxRight, boxBot)
+                e.boxLines[3].From = Vector2.new(boxRight, boxBot)
+                e.boxLines[3].To = Vector2.new(boxLeft, boxBot)
+                e.boxLines[4].From = Vector2.new(boxLeft, boxBot)
+                e.boxLines[4].To = Vector2.new(boxLeft, boxTop)
+                for _, l in ipairs(e.boxLines) do
+                    l.Visible = true
+                    l.Color = color
+                    l.Thickness = ESP_Thickness
+                end
+            else
+                for _, l in ipairs(e.boxLines) do l.Visible = false end
+            end
+
+            if ESP_Health and topOn and botOn then
                 local barW, barX = 3, top.X - 8
                 local barH = bot.Y - top.Y
                 local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
@@ -666,24 +744,38 @@ local function RenderESP()
             end
 
             if topOn then
-                e.name.Position = Vector2.new(top.X, top.Y - 18)
-                e.name.Text = plr.DisplayName
-                e.name.Visible = true
+                local nameY = top.Y - 18
+                if ESP_Name then
+                    e.name.Position = Vector2.new(top.X, nameY)
+                    e.name.Text = plr.DisplayName
+                    e.name.Visible = true
+                else
+                    e.name.Visible = false
+                end
 
-                e.dist.Position = Vector2.new(top.X, botOn and bot.Y + 4 or top.Y + 40)
-                e.dist.Text = "[" .. dist .. "m]"
-                e.dist.Visible = true
+                local infoY = botOn and bot.Y + 4 or top.Y + 40
+                if ESP_Distance then
+                    e.dist.Position = Vector2.new(top.X, infoY)
+                    e.dist.Text = "[" .. dist .. "m]"
+                    e.dist.Visible = true
+                else
+                    e.dist.Visible = false
+                end
 
-                e.weapon.Position = Vector2.new(top.X, botOn and bot.Y + 18 or top.Y + 54)
-                e.weapon.Text = GetWeaponName(char)
-                e.weapon.Visible = true
+                if ESP_Weapon then
+                    e.weapon.Position = Vector2.new(top.X, infoY + 14)
+                    e.weapon.Text = GetWeaponName(char)
+                    e.weapon.Visible = true
+                else
+                    e.weapon.Visible = false
+                end
 
-                if ESP_ShowTracer then
+                if ESP_Tracer then
                     local screenW = Camera.ViewportSize.X
                     e.tracer.From = Vector2.new(screenW / 2, Camera.ViewportSize.Y)
                     e.tracer.To = Vector2.new(top.X, botOn and bot.Y or top.Y + 40)
                     e.tracer.Visible = true
-                    e.tracer.Color = Color3.fromRGB(0, 255, 255)
+                    e.tracer.Color = color
                     e.tracer.Thickness = ESP_Thickness
                 else
                     e.tracer.Visible = false
@@ -701,6 +793,7 @@ local function RenderESP()
             e.dist.Visible = false
             e.weapon.Visible = false
             e.tracer.Visible = false
+            for _, l in ipairs(e.boxLines) do l.Visible = false end
         end
     end
 end
@@ -736,7 +829,7 @@ local function GetPlayerFromCharacter(char)
 end
 
 local function RenderTriggerbot()
-    if not Trig_Enabled then return end
+    if not Combat_Enabled or not Trig_Enabled then return end
 
     local rayOrigin = Camera.CFrame.Position
     local rayDir = Camera.CFrame:VectorToWorldSpace(Vector3.new(0, 0, -1))
@@ -765,18 +858,10 @@ local function RenderTriggerbot()
 
     LastClick = now
     Click()
-
-    local hitPlayer = GetPlayerFromCharacter(hitChar)
-    local hitName = hitPlayer and hitPlayer.DisplayName or "Unknown"
-    local humanoid = hitChar:FindFirstChildOfClass("Humanoid")
-    local hpPct = 0
-    if humanoid and humanoid.MaxHealth > 0 then
-        hpPct = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
-    end
-    Notify("Triggerbot", hitName .. " - " .. hitPart.Name .. " - " .. hpPct .. "% HP", 2)
 end
 
 local function ScanAndReplace()
+    if not Sounds_Enabled then return end
     if HitSoundID == "rbxassetid://0" and ShootSoundID == "rbxassetid://0" and KillSoundID == "rbxassetid://0" then return end
 
     for _, v in ipairs(workspace:GetDescendants()) do
@@ -880,6 +965,7 @@ local function FindTool(weaponName)
 end
 
 local function ApplyDESkins()
+    if not Skins_Enabled then return end
     if DESkinName == "Default" then return end
     local tool = FindTool("Desert Eagle")
     if not tool then return end
@@ -915,6 +1001,7 @@ local function ApplyDESkins()
 end
 
 local function ApplyKnifeSkins()
+    if not Skins_Enabled then return end
     if KnifeSkinName == "Default" then return end
     local knifeNames = {"M9Bayonet", "Butterfly", "Karambit"}
     local tool, weaponName
@@ -948,7 +1035,7 @@ local SoundTick = 0
 Connections.render = RunService.RenderStepped:Connect(function()
     pcall(function()
         DetectActiveTab()
-        ESPPreviewFrame.Visible = (ActiveTabIndex == 3)
+        ESPPreviewFrame.Visible = (ActiveTabIndex == 2)
         if ESPPreviewFrame.Visible then
             local core = ScreenGui:FindFirstChild("core", true)
             if core then
@@ -970,7 +1057,7 @@ Connections.render = RunService.RenderStepped:Connect(function()
 end)
 
 Connections.playerAdded = Players.PlayerAdded:Connect(function(p)
-    if ESP_Enabled then pcall(CreateESP, p) end
+    pcall(CreateESP, p)
 end)
 
 Connections.playerRemoving = Players.PlayerRemoving:Connect(function(p)
