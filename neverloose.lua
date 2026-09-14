@@ -29,18 +29,16 @@ local LP            = Players.LocalPlayer
 local Camera        = workspace.CurrentCamera
 
 -- ═══════════════════════════════════════════════════
--- VERSION CHECK
+-- VERSION CHECK — always kill previous instance
 -- ═══════════════════════════════════════════════════
-local VERSION = 3
+local VERSION = 4
 local GLOBAL_KEY = "_neverloose_version"
 local CLEANUP_KEY = "_neverloose_cleanup"
+local UI_KEY = "_neverloose_ui"
 
-if _G[GLOBAL_KEY] and _G[GLOBAL_KEY] ~= VERSION then
-    if _G[CLEANUP_KEY] and type(_G[CLEANUP_KEY]) == "function" then
-        pcall(_G[CLEANUP_KEY])
-    end
-    print("[neverloose] old version — unloaded.")
-    return
+if _G[CLEANUP_KEY] and type(_G[CLEANUP_KEY]) == "function" then
+    pcall(_G[CLEANUP_KEY])
+    print("[neverloose] previous instance cleaned up")
 end
 _G[GLOBAL_KEY] = VERSION
 
@@ -134,11 +132,13 @@ local ESP_TeamCheck    = false
 
 local Connections = {}
 local ESP = {}
+local UIScreen = nil
 
 -- ═══════════════════════════════════════════════════
 -- CREATE WINDOW
 -- ═══════════════════════════════════════════════════
-local Window = Library:CreateWindow("neverloose", Color3.fromRGB(0, 255, 255))
+local Window, ScreenGui = Library:CreateWindow("neverloose", Color3.fromRGB(0, 255, 255))
+UIScreen = ScreenGui
 
 -- ═══════════════════════════════════════════════════
 -- TABS
@@ -674,16 +674,42 @@ end
 -- CLEANUP
 -- ═══════════════════════════════════════════════════
 local function Unload()
+    -- disconnect all event connections
     for k, v in pairs(Connections) do
         pcall(function() if v and v.Connected then v:Disconnect() end end)
     end
     Connections = {}
+
+    -- destroy all ESP drawings
     for p, _ in pairs(ESP) do pcall(DestroyESP, p) end
+    ESP = {}
+
+    -- kill the UI (also kills any old instances with same name)
+    for _, gui in ipairs(CoreGui:GetChildren()) do
+        if gui.Name == "neverloose" and gui:IsA("ScreenGui") then
+            pcall(function() gui:Destroy() end)
+        end
+    end
+    if UIScreen then
+        pcall(function() UIScreen:Destroy() end)
+        UIScreen = nil
+    end
+
+    -- also check PlayerGui fallback
+    pcall(function()
+        for _, gui in ipairs(LP.PlayerGui:GetChildren()) do
+            if gui.Name == "neverloose" and gui:IsA("ScreenGui") then
+                gui:Destroy()
+            end
+        end
+    end)
+
     _G[GLOBAL_KEY] = nil
     _G[CLEANUP_KEY] = nil
-    print("[neverloose] unloaded.")
+    _G[UI_KEY] = nil
+    print("[neverloose] cleaned up.")
 end
 
 _G[CLEANUP_KEY] = Unload
 
-print("[neverloose] v" .. VERSION .. " loaded — RightControl to toggle UI")
+print("[neverloose] v" .. VERSION .. " loaded — RightShift to toggle UI")
