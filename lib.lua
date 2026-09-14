@@ -1178,6 +1178,169 @@ function Library:CreateWindow(title, color)
                 return ColorTypes
             end
 
+            function GroupTypes:CreateESPPreview(opts)
+                opts = opts or {}
+                local accent = opts.accent or Color3.fromRGB(19, 119, 255)
+                local boxColor = opts.boxColor or Color3.fromRGB(0, 255, 0)
+                local skeletonColor = opts.skeletonColor or Color3.fromRGB(255, 255, 255)
+                local healthHigh = opts.healthHigh or Color3.fromRGB(0, 255, 0)
+                local healthLow = opts.healthLow or Color3.fromRGB(255, 0, 0)
+
+                local preview = Instance.new("Frame")
+                preview.Name = "ESPPreview"
+                preview.Parent = container_2
+                preview.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+                preview.BorderColor3 = Color3.fromRGB(8, 8, 8)
+                preview.Size = UDim2.new(1, -20, 0, 300)
+                preview.ClipsDescendants = true
+
+                local previewInline = Instance.new("Frame")
+                previewInline.Parent = preview
+                previewInline.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+                previewInline.BorderSizePixel = 0
+                previewInline.Position = UDim2.new(0, 1, 0, 1)
+                previewInline.Size = UDim2.new(1, -2, 1, -2)
+
+                local previewTitle = Instance.new("TextLabel")
+                previewTitle.Parent = previewInline
+                previewTitle.BackgroundTransparency = 1
+                previewTitle.Position = UDim2.new(0, 10, 0, 4)
+                previewTitle.Size = UDim2.new(0, 200, 0, 16)
+                previewTitle.Font = Enum.Font.SourceSans
+                previewTitle.Text = "ESP Preview"
+                previewTitle.TextColor3 = accent
+                previewTitle.TextSize = 13
+                previewTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+                local canvas = Instance.new("Frame")
+                canvas.Parent = previewInline
+                canvas.BackgroundTransparency = 1
+                canvas.Position = UDim2.new(0, 0, 0, 22)
+                canvas.Size = UDim2.new(1, 0, 1, -26)
+
+                local function makeLine(parent, p, s, rot, col)
+                    local l = Instance.new("Frame")
+                    l.Parent = parent
+                    l.AnchorPoint = Vector2.new(0.5, 0.5)
+                    l.BackgroundColor3 = col
+                    l.BorderSizePixel = 0
+                    l.Position = p
+                    l.Size = s
+                    l.Rotation = rot or 0
+                    l.ZIndex = 5
+                    return l
+                end
+
+                local function makeText(parent, p, s, txt, col, sz, align)
+                    local t = Instance.new("TextLabel")
+                    t.Parent = parent
+                    t.BackgroundTransparency = 1
+                    t.Position = p
+                    t.Size = s
+                    t.Font = Enum.Font.SourceSans
+                    t.Text = txt
+                    t.TextColor3 = col
+                    t.TextSize = sz or 11
+                    t.TextStrokeTransparency = 0.3
+                    t.ZIndex = 10
+                    t.TextXAlignment = align or Enum.TextXAlignment.Center
+                    return t
+                end
+
+                local cx = 0.5
+                local headY = 0.12
+                local neckY = 0.21
+                local shoulderY = 0.25
+                local hipY = 0.52
+                local kneeY = 0.72
+
+                -- head
+                local head = Instance.new("Frame")
+                head.Parent = canvas
+                head.AnchorPoint = Vector2.new(0.5, 0.5)
+                head.BackgroundColor3 = skeletonColor
+                head.BackgroundTransparency = 0.3
+                head.Shape = Enum.FrameType.Circle
+                head.Position = UDim2.new(cx, 0, headY, 0)
+                head.Size = UDim2.new(0, 20, 0, 20)
+                head.ZIndex = 4
+
+                -- spine
+                makeLine(canvas, UDim2.new(cx, 0, (neckY + hipY) / 2, 0), UDim2.new(0, 2, 0, (hipY - neckY) * 270), 0, skeletonColor)
+                -- shoulders
+                makeLine(canvas, UDim2.new(cx, 0, shoulderY, 0), UDim2.new(0, 40, 0, 2), 0, skeletonColor)
+                -- left arm
+                makeLine(canvas, UDim2.new(cx - 0.045, 0, shoulderY, 0), UDim2.new(0, 2, 0, 35), 25, skeletonColor)
+                makeLine(canvas, UDim2.new(cx - 0.065, 0, shoulderY + 0.06, 0), UDim2.new(0, 2, 0, 32), 5, skeletonColor)
+                -- right arm
+                makeLine(canvas, UDim2.new(cx + 0.045, 0, shoulderY, 0), UDim2.new(0, 2, 0, 35), -25, skeletonColor)
+                makeLine(canvas, UDim2.new(cx + 0.065, 0, shoulderY + 0.06, 0), UDim2.new(0, 2, 0, 32), -5, skeletonColor)
+                -- hips
+                makeLine(canvas, UDim2.new(cx, 0, hipY, 0), UDim2.new(0, 24, 0, 2), 0, skeletonColor)
+                -- left leg
+                makeLine(canvas, UDim2.new(cx - 0.03, 0, hipY, 0), UDim2.new(0, 2, 0, 55), 8, skeletonColor)
+                makeLine(canvas, UDim2.new(cx - 0.04, 0, kneeY, 0), UDim2.new(0, 2, 0, 55), 3, skeletonColor)
+                -- right leg
+                makeLine(canvas, UDim2.new(cx + 0.03, 0, hipY, 0), UDim2.new(0, 2, 0, 55), -8, skeletonColor)
+                makeLine(canvas, UDim2.new(cx + 0.04, 0, kneeY, 0), UDim2.new(0, 2, 0, 55), -3, skeletonColor)
+
+                -- box ESP
+                local boxX = cx - 0.12
+                local boxY = headY - 0.065
+                local boxW = 0.24
+                local boxH = 0.88
+                makeLine(canvas, UDim2.new(cx, 0, boxY, 0), UDim2.new(boxW, 0, 0, 2), 0, boxColor)
+                makeLine(canvas, UDim2.new(cx, 0, boxY + boxH, 0), UDim2.new(boxW, 0, 0, 2), 0, boxColor)
+                makeLine(canvas, UDim2.new(boxX, 0, (boxY + boxY + boxH) / 2, 0), UDim2.new(0, 2, 0, boxH * 270), 0, boxColor)
+                makeLine(canvas, UDim2.new(boxX + boxW, 0, (boxY + boxY + boxH) / 2, 0), UDim2.new(0, 2, 0, boxH * 270), 0, boxColor)
+
+                -- health bar
+                local hbX = boxX - 0.03
+                local hbTop = boxY + 0.01
+                local hbBot = boxY + boxH - 0.01
+                local hbH = hbBot - hbTop
+
+                local hbBg = Instance.new("Frame")
+                hbBg.Parent = canvas
+                hbBg.AnchorPoint = Vector2.new(0.5, 0)
+                hbBg.Position = UDim2.new(hbX, 0, hbTop, 0)
+                hbBg.Size = UDim2.new(0.01, 0, hbH, 0)
+                hbBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                hbBg.BorderSizePixel = 0
+                hbBg.ZIndex = 6
+
+                local hbFill = Instance.new("Frame")
+                hbFill.Parent = hbBg
+                hbFill.AnchorPoint = Vector2.new(0, 1)
+                hbFill.Position = UDim2.new(0, 0, 1, 0)
+                hbFill.Size = UDim2.new(1, 0, 0.72, 0)
+                hbFill.BackgroundColor3 = healthHigh
+                hbFill.BorderSizePixel = 0
+                hbFill.ZIndex = 7
+
+                makeText(canvas, UDim2.new(hbX - 0.025, 0, hbTop - 0.025, 0), UDim2.new(0, 30, 0, 12), "72", healthHigh, 10)
+
+                -- name
+                makeText(canvas, UDim2.new(cx, 0, boxY - 0.04, 0), UDim2.new(0, 120, 0, 14), "PlayerName", Color3.fromRGB(255, 255, 255), 12)
+                -- distance
+                makeText(canvas, UDim2.new(cx, 0, boxY + boxH + 0.01, 0), UDim2.new(0, 60, 0, 12), "[24m]", Color3.fromRGB(180, 180, 180), 10)
+                -- weapon
+                makeText(canvas, UDim2.new(cx, 0, boxY + boxH + 0.03, 0), UDim2.new(0, 80, 0, 12), "AK-47", accent, 9)
+                -- tracer
+                makeLine(canvas, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 1, 0, (1 - (boxY + boxH)) * 270 - 8), 0, accent)
+
+                local ESPPreviewTypes = {}
+                function ESPPreviewTypes:SetColors(cfg)
+                    if cfg.box then boxColor = cfg.box end
+                    if cfg.skeleton then skeletonColor = cfg.skeleton end
+                    if cfg.accent then accent = cfg.accent end
+                    if cfg.healthHigh then healthHigh = cfg.healthHigh end
+                    if cfg.healthLow then healthLow = cfg.healthLow end
+                end
+                function ESPPreviewTypes:GetCanvas() return canvas end
+                return ESPPreviewTypes
+            end
+
             return GroupTypes
         end
 

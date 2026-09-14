@@ -148,9 +148,22 @@ UIScreen = ScreenGui
 -- ═══════════════════════════════════════════════════
 -- TABS
 -- ═══════════════════════════════════════════════════
+local MenuTab     = Window:CreateTab("Menu")
 local CombatTab   = Window:CreateTab("Combat")
 local VisualsTab  = Window:CreateTab("Visuals")
 local SoundsTab   = Window:CreateTab("Sounds")
+
+-- ═══════════════════════════════════════════════════
+-- MENU TAB
+-- ═══════════════════════════════════════════════════
+local ESPPreviewGroup = MenuTab:CreateGroupbox("ESP Preview")
+ESPPreviewGroup:CreateESPPreview({
+    accent = Color3.fromRGB(0, 255, 255),
+    boxColor = Color3.fromRGB(0, 255, 0),
+    skeletonColor = Color3.fromRGB(255, 255, 255),
+    healthHigh = Color3.fromRGB(0, 255, 0),
+    healthLow = Color3.fromRGB(255, 0, 0),
+})
 
 -- ═══════════════════════════════════════════════════
 -- COMBAT TAB
