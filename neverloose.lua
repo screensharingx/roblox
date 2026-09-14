@@ -1106,6 +1106,7 @@ local Trig_Delay     = 0
 
 local ESP_Skeleton   = true
 local ESP_Box        = true
+local ESP_FillBox    = false
 local ESP_Name       = true
 local ESP_Health     = true
 local ESP_Distance   = true
@@ -1115,6 +1116,7 @@ local ESP_Thickness  = 1
 local ESP_MaxDist    = 2000
 local ESP_HideLocal  = true
 local ESP_TeamCheck  = false
+local ESP_Color      = Color3.fromRGB(0, 255, 255)
 
 local DESkinName     = "Default"
 local DESkinID       = "rbxassetid://0"
@@ -1139,19 +1141,14 @@ local SkinsTab   = Window:CreateTab("Skins")
 local function DetectActiveTab()
     local core = ScreenGui:FindFirstChild("core", true)
     if not core then return end
-    local mainContainer = nil
-    for _, v in ipairs(core:GetDescendants()) do
-        if v:IsA("Frame") and v.Name == "container" and v.Parent and v.Parent:IsA("Frame") and v.Parent.Name == "inlinecore" then
-            mainContainer = v
-            break
-        end
-    end
-    if not mainContainer then return end
+    local tabbar = core:FindFirstChild("tabbar", true)
+    if not tabbar then return end
     local idx = 0
-    for _, child in ipairs(mainContainer:GetChildren()) do
-        if child.Name == "container" and child:IsA("Frame") then
+    for _, child in ipairs(tabbar:GetChildren()) do
+        if child.Name:find("tab") and child:IsA("TextButton") then
             idx = idx + 1
-            if child.Visible then
+            local grad = child:FindFirstChildOfClass("UIGradient")
+            if grad and grad.Enabled then
                 ActiveTabIndex = idx
                 return
             end
@@ -1317,6 +1314,7 @@ VisualsGroup:CreateToggle("Enable Visuals", function(v)
 end):CreateKeyBind("P")
 VisualsGroup:CreateToggle("Skeleton", function(v) ESP_Skeleton = v end)
 VisualsGroup:CreateToggle("Box", function(v) ESP_Box = v end)
+VisualsGroup:CreateToggle("Fill Box", function(v) ESP_FillBox = v end)
 VisualsGroup:CreateToggle("Nametag", function(v) ESP_Name = v end)
 VisualsGroup:CreateToggle("Health Bar", function(v) ESP_Health = v end)
 VisualsGroup:CreateToggle("Distance", function(v) ESP_Distance = v end)
@@ -1326,6 +1324,7 @@ VisualsGroup:CreateSlider("Thickness", 1, 5, 1, function(v) ESP_Thickness = v en
 VisualsGroup:CreateSlider("Max Distance", 500, 5000, 2000, function(v) ESP_MaxDist = v end)
 VisualsGroup:CreateToggle("Hide Local Player", function(v) ESP_HideLocal = v end)
 VisualsGroup:CreateToggle("Team Check", function(v) ESP_TeamCheck = v end)
+VisualsGroup:CreateColorPicker("ESP Color", Color3.fromRGB(0, 255, 255), function(v) ESP_Color = v end)
 
 local HitSounds = {
     ["None"]        = "rbxassetid://0",
@@ -1539,6 +1538,7 @@ local function CreateESP(player)
         local data = {
             lines = {},
             boxLines = {},
+            boxFill = nil,
             hpBar = nil,
             hpBg = nil,
             tracer = nil,
@@ -1548,6 +1548,9 @@ local function CreateESP(player)
         }
         for i = 1, 15 do data.lines[i] = MakeLine() end
         for i = 1, 4 do data.boxLines[i] = MakeLine() end
+        data.boxFill = MakeQuad()
+        data.boxFill.Filled = true
+        data.boxFill.Transparency = 0.25
         data.tracer = MakeLine()
         data.hpBg = MakeQuad()
         data.hpBar = MakeQuad()
@@ -1569,6 +1572,7 @@ function DestroyESP(player)
     if not e then return end
     for _, l in ipairs(e.lines) do pcall(function() l:Remove() end) end
     for _, l in ipairs(e.boxLines) do pcall(function() l:Remove() end) end
+    pcall(function() e.boxFill:Remove() end)
     pcall(function() e.tracer:Remove() end)
     pcall(function() e.hpBg:Remove() end)
     pcall(function() e.hpBar:Remove() end)
@@ -1581,6 +1585,7 @@ end
 local function HideESP(e)
     for _, l in ipairs(e.lines) do l.Visible = false end
     for _, l in ipairs(e.boxLines) do l.Visible = false end
+    e.boxFill.Visible = false
     e.tracer.Visible = false
     e.hpBg.Visible = false
     e.hpBar.Visible = false
@@ -1601,6 +1606,8 @@ local function RenderESP()
         for _, e in pairs(ESP) do HideESP(e) end
         return
     end
+
+    local color = ESP_Color
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LP and ESP_HideLocal then
@@ -1639,8 +1646,7 @@ local function RenderESP()
         e = ESP[plr]
         if not e then continue end
 
-        local color = Color3.fromRGB(0, 255, 255)
-
+        -- skeleton
         if ESP_Skeleton then
             local count = #bones
             for i = 1, count do
@@ -1652,7 +1658,7 @@ local function RenderESP()
                     e.lines[i].From = sa
                     e.lines[i].To = sb
                     e.lines[i].Visible = oa and ob
-                    e.lines[i].Color = color
+                    e.lines[i].Color = Color3.fromRGB(255, 255, 255)
                     e.lines[i].Thickness = ESP_Thickness
                 else
                     e.lines[i].Visible = false
@@ -1663,108 +1669,163 @@ local function RenderESP()
             for _, l in ipairs(e.lines) do l.Visible = false end
         end
 
+        -- box + health + text
         if head and humanoid then
             local top, topOn = W2S(head.Position + Vector3.new(0, 0.6, 0))
             local bot, botOn = W2S(head.Position + Vector3.new(0, -3.2, 0))
 
-            if ESP_Box and topOn and botOn then
+            if (ESP_Box or ESP_FillBox or ESP_Health) and topOn and botOn then
                 local boxH = bot.Y - top.Y
                 local boxW = boxH / 2
-                local boxCenterX = top.X
-                local boxLeft = boxCenterX - boxW / 2
-                local boxRight = boxCenterX + boxW / 2
+                local cx = top.X
+                local boxLeft = cx - boxW / 2
+                local boxRight = cx + boxW / 2
                 local boxTop = top.Y
                 local boxBot = bot.Y
 
-                e.boxLines[1].From = Vector2.new(boxLeft, boxTop)
-                e.boxLines[1].To = Vector2.new(boxRight, boxTop)
-                e.boxLines[2].From = Vector2.new(boxRight, boxTop)
-                e.boxLines[2].To = Vector2.new(boxRight, boxBot)
-                e.boxLines[3].From = Vector2.new(boxRight, boxBot)
-                e.boxLines[3].To = Vector2.new(boxLeft, boxBot)
-                e.boxLines[4].From = Vector2.new(boxLeft, boxBot)
-                e.boxLines[4].To = Vector2.new(boxLeft, boxTop)
-                for _, l in ipairs(e.boxLines) do
-                    l.Visible = true
-                    l.Color = color
-                    l.Thickness = ESP_Thickness
+                -- filled box (background)
+                if ESP_FillBox then
+                    e.boxFill.PointA = Vector2.new(boxLeft, boxTop)
+                    e.boxFill.PointB = Vector2.new(boxRight, boxTop)
+                    e.boxFill.PointC = Vector2.new(boxRight, boxBot)
+                    e.boxFill.PointD = Vector2.new(boxLeft, boxBot)
+                    e.boxFill.Color = color
+                    e.boxFill.Visible = true
+                else
+                    e.boxFill.Visible = false
                 end
-            else
-                for _, l in ipairs(e.boxLines) do l.Visible = false end
-            end
 
-            if ESP_Health and topOn and botOn then
-                local barW, barX = 3, top.X - 8
-                local barH = bot.Y - top.Y
-                local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                e.hpBg.PointA = Vector2.new(barX, top.Y)
-                e.hpBg.PointB = Vector2.new(barX + barW, top.Y)
-                e.hpBg.PointC = Vector2.new(barX + barW, top.Y + barH)
-                e.hpBg.PointD = Vector2.new(barX, top.Y + barH)
-                e.hpBg.Visible = true
-                local fill = barH * hp
-                e.hpBar.PointA = Vector2.new(barX, top.Y + barH - fill)
-                e.hpBar.PointB = Vector2.new(barX + barW, top.Y + barH - fill)
-                e.hpBar.PointC = Vector2.new(barX + barW, top.Y + barH)
-                e.hpBar.PointD = Vector2.new(barX, top.Y + barH)
-                e.hpBar.Visible = true
-                e.hpBar.Color = hp > 0.5 and Color3.fromRGB(0, 255, 255) or hp > 0.25 and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(255, 50, 50)
-            else
-                e.hpBg.Visible = false
-                e.hpBar.Visible = false
-            end
+                -- box outline
+                if ESP_Box then
+                    e.boxLines[1].From = Vector2.new(boxLeft, boxTop)
+                    e.boxLines[1].To = Vector2.new(boxRight, boxTop)
+                    e.boxLines[2].From = Vector2.new(boxRight, boxTop)
+                    e.boxLines[2].To = Vector2.new(boxRight, boxBot)
+                    e.boxLines[3].From = Vector2.new(boxRight, boxBot)
+                    e.boxLines[3].To = Vector2.new(boxLeft, boxBot)
+                    e.boxLines[4].From = Vector2.new(boxLeft, boxBot)
+                    e.boxLines[4].To = Vector2.new(boxLeft, boxTop)
+                    for _, l in ipairs(e.boxLines) do
+                        l.Visible = true
+                        l.Color = color
+                        l.Thickness = ESP_Thickness
+                    end
+                else
+                    for _, l in ipairs(e.boxLines) do l.Visible = false end
+                end
 
-            if topOn then
-                local nameY = top.Y - 18
-                if ESP_Name then
-                    e.name.Position = Vector2.new(top.X, nameY)
-                    e.name.Text = plr.DisplayName
-                    e.name.Visible = true
+                -- health bar
+                if ESP_Health then
+                    local barW = 3
+                    local barX = boxLeft - 6
+                    local barH = boxBot - boxTop
+                    local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+
+                    -- bg
+                    e.hpBg.PointA = Vector2.new(barX, boxTop)
+                    e.hpBg.PointB = Vector2.new(barX + barW, boxTop)
+                    e.hpBg.PointC = Vector2.new(barX + barW, boxBot)
+                    e.hpBg.PointD = Vector2.new(barX, boxBot)
+                    e.hpBg.Color = Color3.fromRGB(20, 20, 20)
+                    e.hpBg.Visible = true
+
+                    -- fill
+                    local fill = barH * hp
+                    e.hpBar.PointA = Vector2.new(barX, boxBot - fill)
+                    e.hpBar.PointB = Vector2.new(barX + barW, boxBot - fill)
+                    e.hpBar.PointC = Vector2.new(barX + barW, boxBot)
+                    e.hpBar.PointD = Vector2.new(barX, boxBot)
+                    -- gradient: green > yellow > orange > red
+                    if hp > 0.6 then
+                        e.hpBar.Color = Color3.fromRGB(0, 255, 100)
+                    elseif hp > 0.3 then
+                        e.hpBar.Color = Color3.fromRGB(255, 200, 0)
+                    else
+                        e.hpBar.Color = Color3.fromRGB(255, 50, 50)
+                    end
+                    e.hpBar.Visible = true
+                else
+                    e.hpBg.Visible = false
+                    e.hpBar.Visible = false
+                end
+
+                -- name (above box)
+                if topOn then
+                    if ESP_Name then
+                        e.name.Position = Vector2.new(cx, boxTop - 18)
+                        e.name.Text = plr.DisplayName
+                        e.name.Color = Color3.fromRGB(255, 255, 255)
+                        e.name.Size = 14
+                        e.name.Visible = true
+                    else
+                        e.name.Visible = false
+                    end
+
+                    -- distance + weapon (below box)
+                    local infoY = boxBot + 4
+                    if ESP_Distance then
+                        e.dist.Position = Vector2.new(cx, infoY)
+                        e.dist.Text = "[" .. dist .. "m]"
+                        e.dist.Color = Color3.fromRGB(180, 180, 180)
+                        e.dist.Size = 12
+                        e.dist.Visible = true
+                    else
+                        e.dist.Visible = false
+                    end
+
+                    if ESP_Weapon then
+                        local wName = GetWeaponName(char)
+                        if wName ~= "" then
+                            e.weapon.Position = Vector2.new(cx, infoY + 13)
+                            e.weapon.Text = wName
+                            e.weapon.Color = color
+                            e.weapon.Size = 11
+                            e.weapon.Visible = true
+                        else
+                            e.weapon.Visible = false
+                        end
+                    else
+                        e.weapon.Visible = false
+                    end
+
+                    -- tracers
+                    if ESP_Tracer then
+                        local screenW = Camera.ViewportSize.X
+                        e.tracer.From = Vector2.new(screenW / 2, Camera.ViewportSize.Y)
+                        e.tracer.To = Vector2.new(cx, boxBot)
+                        e.tracer.Visible = true
+                        e.tracer.Color = color
+                        e.tracer.Thickness = ESP_Thickness
+                        e.tracer.Transparency = 0.6
+                    else
+                        e.tracer.Visible = false
+                    end
                 else
                     e.name.Visible = false
-                end
-
-                local infoY = botOn and bot.Y + 4 or top.Y + 40
-                if ESP_Distance then
-                    e.dist.Position = Vector2.new(top.X, infoY)
-                    e.dist.Text = "[" .. dist .. "m]"
-                    e.dist.Visible = true
-                else
                     e.dist.Visible = false
-                end
-
-                if ESP_Weapon then
-                    e.weapon.Position = Vector2.new(top.X, infoY + 14)
-                    e.weapon.Text = GetWeaponName(char)
-                    e.weapon.Visible = true
-                else
                     e.weapon.Visible = false
-                end
-
-                if ESP_Tracer then
-                    local screenW = Camera.ViewportSize.X
-                    e.tracer.From = Vector2.new(screenW / 2, Camera.ViewportSize.Y)
-                    e.tracer.To = Vector2.new(top.X, botOn and bot.Y or top.Y + 40)
-                    e.tracer.Visible = true
-                    e.tracer.Color = color
-                    e.tracer.Thickness = ESP_Thickness
-                else
                     e.tracer.Visible = false
                 end
             else
+                e.boxFill.Visible = false
+                for _, l in ipairs(e.boxLines) do l.Visible = false end
+                e.hpBg.Visible = false
+                e.hpBar.Visible = false
                 e.name.Visible = false
                 e.dist.Visible = false
                 e.weapon.Visible = false
                 e.tracer.Visible = false
             end
         else
+            e.boxFill.Visible = false
+            for _, l in ipairs(e.boxLines) do l.Visible = false end
             e.hpBg.Visible = false
             e.hpBar.Visible = false
             e.name.Visible = false
             e.dist.Visible = false
             e.weapon.Visible = false
             e.tracer.Visible = false
-            for _, l in ipairs(e.boxLines) do l.Visible = false end
+            for _, l in ipairs(e.lines) do l.Visible = false end
         end
     end
 end
