@@ -132,7 +132,8 @@ local ESP_HideLocal    = true
 local ESP_TeamCheck    = false
 
 local DESkinID   = "rbxassetid://0"
-local DESkinName = "Default" -- tracks which skin is selected by name for RS lookup
+local DESkinName = "Default"
+local KnifeSkinName = "Default"
 
 local Connections = {}
 local ESP = {}
@@ -297,7 +298,7 @@ CustomGroup:CreateButton("Reset All Sounds", function()
 end)
 
 -- ═══════════════════════════════════════════════════
--- SKINS TAB — Desert Eagle texture swap
+-- SKINS TAB — Desert Eagle + Knife skins
 -- ═══════════════════════════════════════════════════
 local SkinsTab = Window:CreateTab("Skins")
 
@@ -324,9 +325,54 @@ DESkinGroup:CreateDropdown("Skin", DESkinList, function(v)
     if v == "Default" then
         DESkinID = "rbxassetid://110831261114219"
     else
-        DESkinID = "lookup" -- signals the engine to look up from RS.Textures
+        DESkinID = "lookup"
     end
     Notify("Skins", "DE: " .. v, 2)
+end):SetOption("Default")
+
+-- knife skin names (discovered from RS.Textures.M9Bayonet)
+local KnifeSkinList = {
+    "Default",
+}
+-- try to discover knife skins at runtime
+pcall(function()
+    local tex = RS:FindFirstChild("Textures")
+    if tex then
+        local knifeFolder = tex:FindFirstChild("M9Bayonet")
+        if knifeFolder then
+            for _, rarity in ipairs(knifeFolder:GetChildren()) do
+                if rarity:IsA("Folder") then
+                    for _, skin in ipairs(rarity:GetChildren()) do
+                        if skin:IsA("Folder") then
+                            KnifeSkinList[#KnifeSkinList+1] = skin.Name
+                        end
+                    end
+                end
+            end
+        end
+        -- also butterfly/karambit
+        for _, knife in ipairs({"Butterfly", "Karambit"}) do
+            local kf = tex:FindFirstChild(knife)
+            if kf then
+                for _, rarity in ipairs(kf:GetChildren()) do
+                    if rarity:IsA("Folder") then
+                        for _, skin in ipairs(rarity:GetChildren()) do
+                            if skin:IsA("Folder") then
+                                KnifeSkinList[#KnifeSkinList+1] = skin.Name
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+table.sort(KnifeSkinList)
+
+local KnifeGroup = SkinsTab:CreateGroupbox("Knife Skins")
+KnifeGroup:CreateDropdown("Skin", KnifeSkinList, function(v)
+    KnifeSkinName = v
+    Notify("Skins", "Knife: " .. v, 2)
 end):SetOption("Default")
 
 -- custom skin ID textbox
@@ -641,19 +687,29 @@ local function ScanAndReplace()
 end
 
 -- ═══════════════════════════════════════════════════
--- SKIN ENGINE — clones textures from RS.Textures onto weapon
--- mirrors the game's applyDeagleSkinToViewModel logic
+-- SKIN ENGINE — mirrors game's exact skin application
+-- targets FPS model (first person) + world model
 -- ═══════════════════════════════════════════════════
 local RS = game:GetService("ReplicatedStorage")
 local Textures = RS:FindFirstChild("Textures")
 
+local FACES = {
+    Enum.NormalId.Front, Enum.NormalId.Back,
+    Enum.NormalId.Top, Enum.NormalId.Bottom,
+    Enum.NormalId.Left, Enum.NormalId.Right,
+}
+
 local function isForTexturePart(p)
     if not p:IsA("BasePart") then return false end
-    if p.Name == "ForTexture" then return true end
-    return p.Name:match("^ForTexture%d+$") ~= nil
+    return p.Name == "ForTexture" or p.Name:match("^ForTexture%d+$") ~= nil
 end
 
-local function clearTexturePart(part)
+local function isKnifeTexturePart(p)
+    if not p:IsA("BasePart") then return false end
+    return p.Name ~= "Main" and p.Name ~= "Grip" and p.Name ~= "Grip1" and p.Name ~= "Grip2" and p.Name ~= "Grip3"
+end
+
+local function clearTextures(part)
     for _, v in ipairs(part:GetChildren()) do
         if v:IsA("Texture") or v:IsA("Decal") then
             v:Destroy()
@@ -661,16 +717,11 @@ local function clearTexturePart(part)
     end
 end
 
-local function applyTextureToPart(part, texSource)
+local function applyTexToPart(part, texSource)
     if not texSource then return end
-    local faces = {
-        Enum.NormalId.Front, Enum.NormalId.Back,
-        Enum.NormalId.Top, Enum.NormalId.Bottom,
-        Enum.NormalId.Left, Enum.NormalId.Right,
-    }
     local function applyOne(tex)
         if not (tex:IsA("Texture") or tex:IsA("Decal")) then return end
-        for _, face in ipairs(faces) do
+        for _, face in ipairs(FACES) do
             local clone = tex:Clone()
             clone.Face = face
             clone.Parent = part
@@ -685,72 +736,116 @@ local function applyTextureToPart(part, texSource)
     end
 end
 
-local function getTextureImageFolder(weaponName, skinName)
+local function getSkinTexture(weaponName, skinName)
     if not Textures then return nil end
-    local weaponFolder = Textures:FindFirstChild(weaponName)
-    if not weaponFolder then return nil end
-    -- search all rarity folders for the skin name
-    for _, rarityFolder in ipairs(weaponFolder:GetChildren()) do
-        if rarityFolder:IsA("Folder") then
-            local skinFolder = rarityFolder:FindFirstChild(skinName)
-            if skinFolder then
-                return skinFolder:FindFirstChild("TextureImage")
+    local wf = Textures:FindFirstChild(weaponName)
+    if not wf then return nil end
+    for _, rarity in ipairs(wf:GetChildren()) do
+        if rarity:IsA("Folder") then
+            local sf = rarity:FindFirstChild(skinName)
+            if sf then
+                return sf:FindFirstChild("TextureImage")
             end
         end
     end
     return nil
 end
 
-local function FindWeaponModel(weaponName)
+local function getFPSModel(tool)
+    if not tool then return nil end
+    for _, v in ipairs(tool:GetChildren()) do
+        if v:IsA("Model") and v.Name:match("_FPSMODEL$") then return v end
+    end
+    for _, v in ipairs(tool:GetDescendants()) do
+        if v:IsA("Model") and v.Name:match("_FPSMODEL$") then return v end
+    end
+    return nil
+end
+
+local function FindTool(weaponName)
     local char = LP.Character
     if char then
-        local tool = char:FindFirstChild(weaponName)
-        if tool then return tool:FindFirstChild(weaponName) end
+        local t = char:FindFirstChild(weaponName)
+        if t then return t end
     end
     local bp = LP:FindFirstChild("Backpack")
     if bp then
-        local tool = bp:FindFirstChild(weaponName)
-        if tool then return tool:FindFirstChild(weaponName) end
+        local t = bp:FindFirstChild(weaponName)
+        if t then return t end
     end
     return nil
 end
 
-local function ApplySkins()
+local function ApplyDESkins()
     if DESkinName == "Default" then return end
 
-    local model = FindWeaponModel("Desert Eagle")
-    if not model then return end
+    local tool = FindTool("Desert Eagle")
+    if not tool then return end
 
-    -- clear all existing textures on ForTexture parts
-    for _, v in ipairs(model:GetDescendants()) do
-        if isForTexturePart(v) then
-            clearTexturePart(v)
-        end
-    end
+    -- try FPS model first (first person view), then world model
+    local models = {}
+    local fps = getFPSModel(tool)
+    if fps then models[#models+1] = fps end
+    local worldModel = tool:FindFirstChild("Desert Eagle")
+    if worldModel then models[#models+1] = worldModel end
 
-    -- get the skin texture source
+    -- get texture source
     local texSource = nil
     if DESkinID == "lookup" then
-        texSource = getTextureImageFolder("Desert Eagle", DESkinName)
+        texSource = getSkinTexture("Desert Eagle", DESkinName)
     end
 
-    -- apply textures to all ForTexture parts
-    if texSource then
+    for _, model in ipairs(models) do
+        -- clear existing textures
         for _, v in ipairs(model:GetDescendants()) do
-            if isForTexturePart(v) then
-                applyTextureToPart(v, texSource)
+            if isForTexturePart(v) then clearTextures(v) end
+        end
+        -- apply new textures
+        if texSource then
+            for _, v in ipairs(model:GetDescendants()) do
+                if isForTexturePart(v) then applyTexToPart(v, texSource) end
+            end
+        elseif DESkinID ~= "lookup" then
+            -- custom ID
+            local tmp = Instance.new("Texture")
+            tmp.Texture = DESkinID
+            for _, v in ipairs(model:GetDescendants()) do
+                if isForTexturePart(v) then applyTexToPart(v, tmp) end
+            end
+            tmp:Destroy()
+        end
+    end
+end
+
+local function ApplyKnifeSkins()
+    if KnifeSkinName == "Default" then return end
+
+    -- find any knife tool
+    local knifeNames = {"M9Bayonet", "Butterfly", "Karambit"}
+    local tool, weaponName
+    for _, name in ipairs(knifeNames) do
+        tool = FindTool(name)
+        if tool then weaponName = name break end
+    end
+    if not tool then return end
+
+    local models = {}
+    local fps = getFPSModel(tool)
+    if fps then models[#models+1] = fps end
+    local worldModel = tool:FindFirstChild(weaponName)
+    if worldModel then models[#models+1] = worldModel end
+
+    local texSource = getSkinTexture(weaponName, KnifeSkinName)
+
+    for _, model in ipairs(models) do
+        for _, v in ipairs(model:GetDescendants()) do
+            if isKnifeTexturePart(v) then clearTextures(v) end
+        end
+        if texSource then
+            for _, v in ipairs(model:GetDescendants()) do
+                if isKnifeTexturePart(v) then applyTexToPart(v, texSource) end
             end
         end
-    elseif DESkinID ~= "lookup" then
-        -- custom ID: create a simple texture and apply
-        local fakeTex = Instance.new("Texture")
-        fakeTex.Texture = DESkinID
-        for _, v in ipairs(model:GetDescendants()) do
-            if isForTexturePart(v) then
-                applyTextureToPart(v, fakeTex)
-            end
-        end
-        fakeTex:Destroy()
     end
 end
 
@@ -766,7 +861,8 @@ Connections.render = RunService.RenderStepped:Connect(function()
     if SoundTick >= 60 then
         SoundTick = 0
         pcall(ScanAndReplace)
-        pcall(ApplySkins)
+        pcall(ApplyDESkins)
+        pcall(ApplyKnifeSkins)
     end
 end)
 
