@@ -7,7 +7,7 @@
         Visuals — Skeleton ESP, Health Bars, Tracers
         Sounds  — Hit / Shoot / Kill sounds
     
-    Press RightShift to toggle UI.
+    Press RightControl to toggle UI.
     VERSION: 3
 ]]
 
@@ -284,34 +284,51 @@ end):SetOption("None")
 local CustomGroup = SoundsTab:CreateGroupbox("Custom IDs")
 
 CustomGroup:CreateButton("Apply Custom IDs", function()
-    local soundService = workspace:FindFirstChild("SoundService")
-    if not soundService then
-        Notify("Sounds", "SoundService not found", 3)
+    local applied = 0
+
+    -- find local player's character in workspace
+    local char = LP.Character
+    if not char then
+        Notify("Sounds", "No character found", 3)
         return
     end
 
-    local applied = 0
-
-    local hit = soundService:FindFirstChild("LocalHitSound")
-    if hit and HitSoundID ~= "rbxassetid://0" then
-        hit.SoundId = HitSoundID
-        applied = applied + 1
+    -- replace all HitSound objects on character weapons
+    if HitSoundID ~= "rbxassetid://0" then
+        for _, v in ipairs(char:GetDescendants()) do
+            if v:IsA("Sound") and v.Name == "HitSound" then
+                v.SoundId = HitSoundID
+                applied = applied + 1
+            end
+        end
     end
 
-    local shoot = soundService:FindFirstChild("LocalShootSound")
-    if shoot and ShootSoundID ~= "rbxassetid://0" then
-        shoot.SoundId = ShootSoundID
-        applied = applied + 1
+    -- replace all Shoot sounds on character weapons
+    if ShootSoundID ~= "rbxassetid://0" then
+        for _, v in ipairs(char:GetDescendants()) do
+            if v:IsA("Sound") and (v.Name == "Shoot1" or v.Name == "Shoot" or v.Name == "Fire") then
+                v.SoundId = ShootSoundID
+                applied = applied + 1
+            end
+        end
     end
 
-    local kill = soundService:FindFirstChild("EliminatedSound")
-    if kill and KillSoundID ~= "rbxassetid://0" then
-        kill.SoundId = KillSoundID
-        applied = applied + 1
+    -- replace EliminatedSound in SoundService
+    if KillSoundID ~= "rbxassetid://0" then
+        local ss = game:GetService("SoundService")
+        local elim = ss:FindFirstChild("EliminatedSound")
+        if elim then
+            elim.SoundId = KillSoundID
+            applied = applied + 1
+        end
     end
 
-    Notify("Sounds", applied .. " sound(s) replaced", 3)
-    print("[neverloose] " .. applied .. " sound(s) applied")
+    if applied == 0 then
+        Notify("Sounds", "No matching sounds found on character", 3)
+    else
+        Notify("Sounds", applied .. " sound(s) replaced", 3)
+        print("[neverloose] " .. applied .. " sound(s) applied")
+    end
 end)
 
 CustomGroup:CreateButton("Reset All Sounds", function()
@@ -669,4 +686,4 @@ end
 
 _G[CLEANUP_KEY] = Unload
 
-print("[neverloose] v" .. VERSION .. " loaded — RightShift to toggle UI")
+print("[neverloose] v" .. VERSION .. " loaded — RightControl to toggle UI")
