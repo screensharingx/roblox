@@ -1128,7 +1128,6 @@ local KillSoundID    = "rbxassetid://0"
 local Connections = {}
 local ESP = {}
 local UIScreen = nil
-local ActiveTabIndex = 3
 
 local Window, ScreenGui = Library:CreateWindow("neverloose", Color3.fromRGB(0, 255, 255))
 UIScreen = ScreenGui
@@ -1137,163 +1136,6 @@ local CombatTab  = Window:CreateTab("Combat")
 local VisualsTab = Window:CreateTab("Visuals")
 local SoundsTab  = Window:CreateTab("Sounds")
 local SkinsTab   = Window:CreateTab("Skins")
-
-local function DetectActiveTab()
-    local core = ScreenGui:FindFirstChild("core", true)
-    if not core then return end
-    local tabbar = core:FindFirstChild("tabbar", true)
-    if not tabbar then return end
-    local idx = 0
-    for _, child in ipairs(tabbar:GetChildren()) do
-        if child.Name:find("tab") and child:IsA("TextButton") then
-            idx = idx + 1
-            local grad = child:FindFirstChildOfClass("UIGradient")
-            if grad and grad.Enabled then
-                ActiveTabIndex = idx
-                return
-            end
-        end
-    end
-end
-
-local ESPPreviewFrame
-do
-    local accent    = Color3.fromRGB(0, 255, 255)
-    local boxColor  = Color3.fromRGB(0, 255, 0)
-    local skelColor = Color3.fromRGB(255, 255, 255)
-    local hpHigh    = Color3.fromRGB(0, 255, 0)
-
-    ESPPreviewFrame = Instance.new("Frame")
-    ESPPreviewFrame.Name = "ESPPreview"
-    ESPPreviewFrame.Parent = ScreenGui
-    ESPPreviewFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-    ESPPreviewFrame.BorderColor3 = Color3.fromRGB(8, 8, 8)
-    ESPPreviewFrame.Size = UDim2.new(0, 220, 0, 340)
-    ESPPreviewFrame.ClipsDescendants = true
-    ESPPreviewFrame.Visible = false
-    Instance.new("UICorner", ESPPreviewFrame).CornerRadius = UDim.new(0, 6)
-
-    local inner = Instance.new("Frame")
-    inner.Parent = ESPPreviewFrame
-    inner.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-    inner.BorderSizePixel = 0
-    inner.Position = UDim2.new(0, 1, 0, 1)
-    inner.Size = UDim2.new(1, -2, 1, -2)
-    Instance.new("UICorner", inner).CornerRadius = UDim.new(0, 5)
-
-    local title = Instance.new("TextLabel")
-    title.Parent = inner
-    title.BackgroundTransparency = 1
-    title.Position = UDim2.new(0, 10, 0, 6)
-    title.Size = UDim2.new(1, -20, 0, 16)
-    title.Font = Enum.Font.GothamBold
-    title.Text = "ESP Preview"
-    title.TextColor3 = accent
-    title.TextSize = 13
-    title.TextXAlignment = Enum.TextXAlignment.Left
-
-    local canvas = Instance.new("Frame")
-    canvas.Parent = inner
-    canvas.BackgroundTransparency = 1
-    canvas.Position = UDim2.new(0, 0, 0, 24)
-    canvas.Size = UDim2.new(1, 0, 1, -30)
-
-    local function mkLine(parent, p, s, rot, col)
-        local l = Instance.new("Frame")
-        l.Parent = parent
-        l.AnchorPoint = Vector2.new(0.5, 0.5)
-        l.BackgroundColor3 = col
-        l.BorderSizePixel = 0
-        l.Position = p
-        l.Size = s
-        l.Rotation = rot or 0
-        l.ZIndex = 5
-        return l
-    end
-
-    local function mkText(parent, p, s, txt, col, sz)
-        local t = Instance.new("TextLabel")
-        t.Parent = parent
-        t.BackgroundTransparency = 1
-        t.Position = p
-        t.Size = s
-        t.Font = Enum.Font.Gotham
-        t.Text = txt
-        t.TextColor3 = col
-        t.TextSize = sz or 11
-        t.TextStrokeTransparency = 0.3
-        t.ZIndex = 10
-        t.TextXAlignment = Enum.TextXAlignment.Center
-        return t
-    end
-
-    local cx = 0.5
-    local headY = 0.12
-    local neckY = 0.21
-    local shY   = 0.25
-    local hipY  = 0.52
-    local kneeY = 0.72
-
-    local head = Instance.new("Frame")
-    head.Parent = canvas
-    head.AnchorPoint = Vector2.new(0.5, 0.5)
-    head.BackgroundColor3 = skelColor
-    head.BackgroundTransparency = 0.3
-    head.Position = UDim2.new(cx, 0, headY, 0)
-    head.Size = UDim2.new(0, 18, 0, 18)
-    head.ZIndex = 4
-    Instance.new("UICorner", head).CornerRadius = UDim.new(1, 0)
-
-    mkLine(canvas, UDim2.new(cx, 0, (neckY + hipY) / 2, 0), UDim2.new(0, 2, 0, (hipY - neckY) * 280), 0, skelColor)
-    mkLine(canvas, UDim2.new(cx, 0, shY, 0), UDim2.new(0, 36, 0, 2), 0, skelColor)
-    mkLine(canvas, UDim2.new(cx - 0.04, 0, shY, 0), UDim2.new(0, 2, 0, 32), 25, skelColor)
-    mkLine(canvas, UDim2.new(cx - 0.058, 0, shY + 0.06, 0), UDim2.new(0, 2, 0, 28), 5, skelColor)
-    mkLine(canvas, UDim2.new(cx + 0.04, 0, shY, 0), UDim2.new(0, 2, 0, 32), -25, skelColor)
-    mkLine(canvas, UDim2.new(cx + 0.058, 0, shY + 0.06, 0), UDim2.new(0, 2, 0, 28), -5, skelColor)
-    mkLine(canvas, UDim2.new(cx, 0, hipY, 0), UDim2.new(0, 22, 0, 2), 0, skelColor)
-    mkLine(canvas, UDim2.new(cx - 0.028, 0, hipY, 0), UDim2.new(0, 2, 0, 50), 8, skelColor)
-    mkLine(canvas, UDim2.new(cx - 0.038, 0, kneeY, 0), UDim2.new(0, 2, 0, 50), 3, skelColor)
-    mkLine(canvas, UDim2.new(cx + 0.028, 0, hipY, 0), UDim2.new(0, 2, 0, 50), -8, skelColor)
-    mkLine(canvas, UDim2.new(cx + 0.038, 0, kneeY, 0), UDim2.new(0, 2, 0, 50), -3, skelColor)
-
-    local bx = cx - 0.11
-    local by = headY - 0.06
-    local bw = 0.22
-    local bh = 0.86
-    mkLine(canvas, UDim2.new(cx, 0, by, 0), UDim2.new(bw, 0, 0, 2), 0, boxColor)
-    mkLine(canvas, UDim2.new(cx, 0, by + bh, 0), UDim2.new(bw, 0, 0, 2), 0, boxColor)
-    mkLine(canvas, UDim2.new(bx, 0, (by + by + bh) / 2, 0), UDim2.new(0, 2, 0, bh * 280), 0, boxColor)
-    mkLine(canvas, UDim2.new(bx + bw, 0, (by + by + bh) / 2, 0), UDim2.new(0, 2, 0, bh * 280), 0, boxColor)
-
-    local hbX = bx - 0.028
-    local hbTop = by + 0.01
-    local hbBot = by + bh - 0.01
-    local hbH = hbBot - hbTop
-
-    local hbBg = Instance.new("Frame")
-    hbBg.Parent = canvas
-    hbBg.AnchorPoint = Vector2.new(0.5, 0)
-    hbBg.Position = UDim2.new(hbX, 0, hbTop, 0)
-    hbBg.Size = UDim2.new(0.012, 0, hbH, 0)
-    hbBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    hbBg.BorderSizePixel = 0
-    hbBg.ZIndex = 6
-
-    local hbFill = Instance.new("Frame")
-    hbFill.Parent = hbBg
-    hbFill.AnchorPoint = Vector2.new(0, 1)
-    hbFill.Position = UDim2.new(0, 0, 1, 0)
-    hbFill.Size = UDim2.new(1, 0, 0.72, 0)
-    hbFill.BackgroundColor3 = hpHigh
-    hbFill.BorderSizePixel = 0
-    hbFill.ZIndex = 7
-
-    mkText(canvas, UDim2.new(hbX - 0.03, 0, hbTop - 0.03, 0), UDim2.new(0, 28, 0, 12), "72", hpHigh, 10)
-    mkText(canvas, UDim2.new(cx, 0, by - 0.04, 0), UDim2.new(0, 120, 0, 14), "PlayerName", Color3.fromRGB(255, 255, 255), 12)
-    mkText(canvas, UDim2.new(cx, 0, by + bh + 0.01, 0), UDim2.new(0, 60, 0, 12), "[24m]", Color3.fromRGB(180, 180, 180), 10)
-    mkText(canvas, UDim2.new(cx, 0, by + bh + 0.03, 0), UDim2.new(0, 80, 0, 12), "AK-47", accent, 9)
-    mkLine(canvas, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 1, 0, (1 - (by + bh)) * 280 - 8), 0, accent)
-end
 
 local CombatGroup = CombatTab:CreateGroupbox("Triggerbot")
 CombatGroup:CreateToggle("Enable Combat", function(v)
@@ -1671,15 +1513,31 @@ local function RenderESP()
 
         -- box + health + text
         if head and humanoid then
-            local top, topOn = W2S(head.Position + Vector3.new(0, 0.6, 0))
-            local bot, botOn = W2S(head.Position + Vector3.new(0, -3.2, 0))
+            -- project 4 world-space corners for proper aspect ratio
+            local rootPos = hrp.Position
+            local headTop = head.Position + Vector3.new(0, 0.6, 0)
+            local feetPos = rootPos - Vector3.new(0, 3.2, 0)
+            local camCF = Camera.CFrame
+            local camRight = camCF:VectorToWorldSpace(Vector3.new(1, 0, 0))
+
+            -- get width from character's actual bounding half-size projected sideways
+            local charWidth = 2.2 -- R15 default approx shoulder width in studs
+            local halfW = charWidth / 2
+
+            local top, topOn = W2S(headTop)
+            local bot, botOn = W2S(feetPos)
+
+            -- project side points to get accurate width at feet level
+            local leftW, leftOn = W2S(rootPos + camRight * halfW)
+            local rightW, rightOn = W2S(rootPos - camRight * halfW)
+            local screenW = math.abs(rightW.X - leftW.X)
+            if screenW < 10 then screenW = (bot.Y - top.Y) / 2 end -- fallback
 
             if (ESP_Box or ESP_FillBox or ESP_Health) and topOn and botOn then
                 local boxH = bot.Y - top.Y
-                local boxW = boxH / 2
                 local cx = top.X
-                local boxLeft = cx - boxW / 2
-                local boxRight = cx + boxW / 2
+                local boxLeft = cx - screenW / 2
+                local boxRight = cx + screenW / 2
                 local boxTop = top.Y
                 local boxBot = bot.Y
 
@@ -2065,17 +1923,6 @@ end
 
 local SoundTick = 0
 Connections.render = RunService.RenderStepped:Connect(function()
-    pcall(function()
-        DetectActiveTab()
-        ESPPreviewFrame.Visible = (ActiveTabIndex == 2)
-        if ESPPreviewFrame.Visible then
-            local core = ScreenGui:FindFirstChild("core", true)
-            if core then
-                ESPPreviewFrame.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
-            end
-        end
-    end)
-
     pcall(RenderESP)
     pcall(RenderTriggerbot)
 
