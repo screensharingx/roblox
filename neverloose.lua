@@ -131,8 +131,7 @@ local ESP_ShowTracer   = false
 local ESP_HideLocal    = true
 local ESP_TeamCheck    = false
 
-local DESkinID   = "rbxassetid://0" -- Desert Eagle skin texture
-local KnifeSkinColor = nil           -- M9Bayonet blade color
+local DESkinID   = "rbxassetid://0"
 
 local Connections = {}
 local ESP = {}
@@ -297,70 +296,90 @@ CustomGroup:CreateButton("Reset All Sounds", function()
 end)
 
 -- ═══════════════════════════════════════════════════
--- SKINS TAB
+-- SKINS TAB — Desert Eagle texture swap
 -- ═══════════════════════════════════════════════════
 local SkinsTab = Window:CreateTab("Skins")
 
--- auto-discover skins from lobby shop
-local function DiscoverSkins()
-    local skins = {}
-    local shopModel = workspace:FindFirstChild("Lobby")
-    if shopModel then shopModel = shopModel:FindFirstChild("MoreLobbyItems") end
-    if shopModel then shopModel = shopModel:FindFirstChild("ShopModel") end
-    if not shopModel then return skins end
+-- known skins from lobby shop + defaults
+local DESkins = {
+    ["Default"]           = "rbxassetid://110831261114219",
+    ["Carbon Stealth"]    = "rbxassetid://122238641950780",
+    ["Blizzard"]          = "rbxassetid://7797622159",
+}
 
-    for _, skinModel in ipairs(shopModel:GetChildren()) do
-        if skinModel:IsA("Model") then
-            -- find first Texture to get the skin texture ID
-            for _, desc in ipairs(skinModel:GetDescendants()) do
-                if desc:IsA("Texture") then
-                    skins[skinModel.Name] = desc.Texture
-                    break
+-- also try to discover skins from lobby at runtime
+pcall(function()
+    local shopModel = workspace.Lobby.MoreLobbyItems.ShopModel
+    if shopModel then
+        for _, skinModel in ipairs(shopModel:GetChildren()) do
+            if skinModel:IsA("Model") and not DESkins[skinModel.Name] then
+                for _, desc in ipairs(skinModel:GetDescendants()) do
+                    if desc:IsA("Texture") then
+                        DESkins[skinModel.Name] = desc.Texture
+                        break
+                    end
                 end
             end
         end
     end
-    return skins
-end
+end)
 
-local DESkins = DiscoverSkins()
-local DESkinNames = {"None"}
+local DESkinNames = {}
 for name in pairs(DESkins) do DESkinNames[#DESkinNames+1] = name end
 table.sort(DESkinNames)
 
--- knife blade colors
-local KnifeColors = {
-    ["None"]      = nil,
-    ["Red"]       = Color3.fromRGB(255, 0, 0),
-    ["Blue"]      = Color3.fromRGB(0, 100, 255),
-    ["Green"]     = Color3.fromRGB(0, 255, 0),
-    ["Yellow"]    = Color3.fromRGB(255, 255, 0),
-    ["Cyan"]      = Color3.fromRGB(0, 255, 255),
-    ["Magenta"]   = Color3.fromRGB(255, 0, 255),
-    ["Orange"]    = Color3.fromRGB(255, 165, 0),
-    ["Purple"]    = Color3.fromRGB(160, 0, 255),
-    ["White"]     = Color3.fromRGB(255, 255, 255),
-    ["Black"]     = Color3.fromRGB(0, 0, 0),
-    ["Neon"]      = Color3.fromRGB(0, 255, 255),
-    ["Gold"]      = Color3.fromRGB(255, 215, 0),
-    ["Hot Pink"]  = Color3.fromRGB(255, 105, 180),
-    ["Lime"]      = Color3.fromRGB(50, 255, 50),
-}
-local KnifeColorNames = {"None"}
-for name in pairs(KnifeColors) do if name ~= "None" then KnifeColorNames[#KnifeColorNames+1] = name end end
-table.sort(KnifeColorNames)
-
-local DESkinGroup = SkinsTab:CreateGroupbox("Desert Eagle")
+local DESkinGroup = SkinsTab:CreateGroupbox("Desert Eagle Skins")
 DESkinGroup:CreateDropdown("Skin", DESkinNames, function(v)
     DESkinID = DESkins[v] or "rbxassetid://0"
     Notify("Skins", "DE: " .. v, 2)
-end):SetOption("None")
+end):SetOption("Default")
 
-local KnifeGroup = SkinsTab:CreateGroupbox("M9Bayonet")
-KnifeGroup:CreateDropdown("Blade Color", KnifeColorNames, function(v)
-    KnifeSkinColor = KnifeColors[v]
-    Notify("Skins", "Knife: " .. v, 2)
-end):SetOption("None")
+-- custom skin ID textbox
+local function CreateTextbox(parent, label, default, callback)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, -8, 0, 24)
+    f.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    f.BorderSizePixel = 0
+    f.Parent = parent
+
+    local t = Instance.new("TextLabel")
+    t.Size = UDim2.new(0.35, 0, 1, 0)
+    t.Position = UDim2.new(0, 8, 0, 0)
+    t.BackgroundTransparency = 1
+    t.Text = label
+    t.TextColor3 = Color3.fromRGB(255, 255, 255)
+    t.TextSize = 13
+    t.Font = Enum.Font.SourceSans
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.Parent = f
+
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.6, 0, 0.75, 0)
+    box.Position = UDim2.new(0.37, 0, 0.125, 0)
+    box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    box.BorderSizePixel = 0
+    box.Text = default or ""
+    box.TextColor3 = Color3.fromRGB(200, 200, 200)
+    box.TextSize = 12
+    box.Font = Enum.Font.SourceSans
+    box.ClearTextOnFocus = false
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.Parent = f
+
+    box.FocusLost:Connect(function()
+        callback(box.Text)
+    end)
+
+    return box
+end
+
+local CustomSkinGroup = SkinsTab:CreateGroupbox("Custom Skin ID")
+CreateTextbox(CustomSkinGroup, "Texture ID", "rbxassetid://", function(v)
+    if v and v ~= "" and v ~= "rbxassetid://" then
+        DESkinID = v
+        Notify("Skins", "Custom skin applied", 2)
+    end
+end)
 
 -- ═══════════════════════════════════════════════════
 -- ESP ENGINE
@@ -626,53 +645,38 @@ local function ScanAndReplace()
 end
 
 -- ═══════════════════════════════════════════════════
--- SKIN ENGINE — replaces weapon textures + colors
+-- SKIN ENGINE — swaps Desert Eagle TextureImage textures
 -- ═══════════════════════════════════════════════════
-local function ApplySkins()
-    -- Desert Eagle: replace TextureImage on all ForTexture parts
-    if DESkinID ~= "rbxassetid://0" then
-        for _, player in ipairs(Players:GetPlayers()) do
-            local char = player.Character
-            if char then
-                local tool = char:FindFirstChild("Desert Eagle") or (LP:FindFirstChild("Backpack") and LP.Backpack:FindFirstChild("Desert Eagle"))
-                if tool then
-                    local model = tool:FindFirstChild("Desert Eagle")
-                    if model then
-                        for _, v in ipairs(model:GetDescendants()) do
-                            if v:IsA("Texture") and v.Name == "TextureImage" then
-                                if v.Texture ~= DESkinID then v.Texture = DESkinID end
-                            end
-                        end
-                    end
-                end
-            end
+local function FindWeaponModel(weaponName)
+    -- check character first
+    local char = LP.Character
+    if char then
+        local tool = char:FindFirstChild(weaponName)
+        if tool then
+            return tool:FindFirstChild(weaponName) -- the Model inside the Tool
         end
     end
+    -- then backpack
+    local bp = LP:FindFirstChild("Backpack")
+    if bp then
+        local tool = bp:FindFirstChild(weaponName)
+        if tool then
+            return tool:FindFirstChild(weaponName)
+        end
+    end
+    return nil
+end
 
-    -- M9Bayonet: set blade color
-    if KnifeSkinColor then
-        for _, player in ipairs(Players:GetPlayers()) do
-            local char = player.Character
-            if char then
-                local tool = char:FindFirstChild("M9Bayonet") or (LP:FindFirstChild("Backpack") and LP.Backpack:FindFirstChild("M9Bayonet"))
-                if tool then
-                    local model = tool:FindFirstChild("M9Bayonet")
-                    if model then
-                        local blade = model:FindFirstChild("Blade")
-                        if blade and blade:IsA("BasePart") then
-                            if blade.Color ~= KnifeSkinColor then blade.Color = KnifeSkinColor end
-                        end
-                        -- also color the details for full skin effect
-                        for _, part in ipairs(model:GetChildren()) do
-                            if part:IsA("BasePart") and part.Name ~= "Blade" then
-                                -- keep grip black, only color details
-                                if part.Name:find("Detail") then
-                                    if part.Color ~= KnifeSkinColor then part.Color = KnifeSkinColor end
-                                end
-                            end
-                        end
-                    end
-                end
+local function ApplySkins()
+    if DESkinID == "rbxassetid://0" then return end
+
+    local model = FindWeaponModel("Desert Eagle")
+    if not model then return end
+
+    for _, v in ipairs(model:GetDescendants()) do
+        if v:IsA("Texture") and v.Name == "TextureImage" then
+            if v.Texture ~= DESkinID then
+                v.Texture = DESkinID
             end
         end
     end
