@@ -946,15 +946,16 @@ end
 
 local SoundTick = 0
 Connections.render = RunService.RenderStepped:Connect(function()
-    DetectActiveTab()
-    ESPPreviewFrame.Visible = (ActiveTabIndex == 3)
-
-    if ESPPreviewFrame.Visible then
-        local core = ScreenGui:FindFirstChild("core", true)
-        if core then
-            ESPPreviewFrame.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
+    pcall(function()
+        DetectActiveTab()
+        ESPPreviewFrame.Visible = (ActiveTabIndex == 3)
+        if ESPPreviewFrame.Visible then
+            local core = ScreenGui:FindFirstChild("core", true)
+            if core then
+                ESPPreviewFrame.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
+            end
         end
-    end
+    end)
 
     pcall(RenderESP)
     pcall(RenderTriggerbot)
