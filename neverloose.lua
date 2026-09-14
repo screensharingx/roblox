@@ -1,51 +1,24 @@
-﻿--[[
-    neverloose — Unified Roblox Cheat UI
-    UI: Bracket Lib V2 (loaded from git)
-    
-    Tabs:
-        Combat  — Triggerbot
-        Visuals — Skeleton ESP, Health Bars, Tracers
-        Sounds  — Hit / Shoot / Kill sounds
-        Skins   — Desert Eagle textures, M9Bayonet colors
-    
-    Press RightShift to toggle UI.
-    VERSION: 5
-]]
+﻿local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/screensharingx/roblox/main/lib.lua"))()
 
--- ═══════════════════════════════════════════════════
--- LOAD UI LIB
--- ═══════════════════════════════════════════════════
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/screensharingx/roblox/main/lib.lua"))()
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local UserInput    = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui      = game:GetService("CoreGui")
+local VIM          = game:GetService("VirtualInputManager")
+local RS           = game:GetService("ReplicatedStorage")
+local LP           = Players.LocalPlayer
+local Camera       = workspace.CurrentCamera
 
--- ═══════════════════════════════════════════════════
--- SERVICES
--- ═══════════════════════════════════════════════════
-local Players       = game:GetService("Players")
-local RunService    = game:GetService("RunService")
-local UserInput     = game:GetService("UserInputService")
-local TweenService  = game:GetService("TweenService")
-local CoreGui       = game:GetService("CoreGui")
-local VIM           = game:GetService("VirtualInputManager")
-local LP            = Players.LocalPlayer
-local Camera        = workspace.CurrentCamera
-
--- ═══════════════════════════════════════════════════
--- VERSION CHECK — always kill previous instance
--- ═══════════════════════════════════════════════════
-local VERSION = 4
-local GLOBAL_KEY = "_neverloose_version"
+local VERSION    = 5
+local GLOBAL_KEY = "_neverloose_v"
 local CLEANUP_KEY = "_neverloose_cleanup"
-local UI_KEY = "_neverloose_ui"
 
 if _G[CLEANUP_KEY] and type(_G[CLEANUP_KEY]) == "function" then
     pcall(_G[CLEANUP_KEY])
-    print("[neverloose] previous instance cleaned up")
 end
 _G[GLOBAL_KEY] = VERSION
 
--- ═══════════════════════════════════════════════════
--- NOTIFY
--- ═══════════════════════════════════════════════════
 local LastNotify = 0
 local function Notify(title, text, duration)
     local now = tick()
@@ -54,7 +27,7 @@ local function Notify(title, text, duration)
     task.spawn(function()
         duration = duration or 3
         local gui = Instance.new("ScreenGui")
-        gui.Name = "CHEAT_NOTIFY"
+        gui.Name = "NL_NOTIFY"
         gui.ResetOnSpawn = false
         gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         gui.DisplayOrder = 999
@@ -117,78 +90,73 @@ local function Notify(title, text, duration)
     end)
 end
 
--- ═══════════════════════════════════════════════════
--- STATE
--- ═══════════════════════════════════════════════════
-local ESP_Enabled      = true
-local Trig_Enabled     = true
-local Trig_MaxDist     = 500
-local Trig_Delay       = 0
-local ESP_Thickness    = 1
-local ESP_MaxDist      = 2000
-local ESP_ShowHealth   = true
-local ESP_ShowTracer   = false
-local ESP_HideLocal    = true
-local ESP_TeamCheck    = false
-
-local DESkinID   = "rbxassetid://0"
-local DESkinName = "Default"
-local KnifeSkinName = "Default"
+local ESP_Enabled    = true
+local Trig_Enabled   = true
+local Trig_MaxDist   = 500
+local Trig_Delay     = 0
+local ESP_Thickness  = 1
+local ESP_MaxDist    = 2000
+local ESP_ShowHealth = true
+local ESP_ShowTracer = false
+local ESP_HideLocal  = true
+local ESP_TeamCheck  = false
+local DESkinName     = "Default"
+local DESkinID       = "rbxassetid://0"
+local KnifeSkinName  = "Default"
+local HitSoundID     = "rbxassetid://0"
+local ShootSoundID   = "rbxassetid://0"
+local KillSoundID    = "rbxassetid://0"
 
 local Connections = {}
 local ESP = {}
 local UIScreen = nil
+local ActiveTabIndex = 3
 
--- ═══════════════════════════════════════════════════
--- CREATE WINDOW
--- ═══════════════════════════════════════════════════
 local Window, ScreenGui = Library:CreateWindow("neverloose", Color3.fromRGB(0, 255, 255))
 UIScreen = ScreenGui
 
--- ═══════════════════════════════════════════════════
--- TABS
--- ═══════════════════════════════════════════════════
-local MenuTab     = Window:CreateTab("Menu")
-local CombatTab   = Window:CreateTab("Combat")
-local VisualsTab  = Window:CreateTab("Visuals")
-local SoundsTab   = Window:CreateTab("Sounds")
+local MenuTab    = Window:CreateTab("Menu")
+local CombatTab  = Window:CreateTab("Combat")
+local VisualsTab = Window:CreateTab("Visuals")
+local SoundsTab  = Window:CreateTab("Sounds")
+local SkinsTab   = Window:CreateTab("Skins")
 
--- ═══════════════════════════════════════════════════
--- MENU TAB
--- ═══════════════════════════════════════════════════
+local function DetectActiveTab()
+    local core = ScreenGui:FindFirstChild("core", true)
+    if not core then return end
+    local container = core:FindFirstChild("container", true)
+    if not container then return end
+    local idx = 0
+    for _, child in ipairs(container:GetChildren()) do
+        if child.Name == "container" and child:IsA("Frame") then
+            idx = idx + 1
+            if child.Visible then
+                ActiveTabIndex = idx
+                return
+            end
+        end
+    end
+end
 
--- ═══════════════════════════════════════════════════
--- ESP PREVIEW — floating panel outside menu
--- ═══════════════════════════════════════════════════
+local ESPPreviewFrame
 do
     local accent    = Color3.fromRGB(0, 255, 255)
     local boxColor  = Color3.fromRGB(0, 255, 0)
     local skelColor = Color3.fromRGB(255, 255, 255)
     local hpHigh    = Color3.fromRGB(0, 255, 0)
 
-    local preview = Instance.new("Frame")
-    preview.Name = "ESPPreview"
-    preview.Parent = ScreenGui
-    preview.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-    preview.BorderColor3 = Color3.fromRGB(8, 8, 8)
-    preview.Size = UDim2.new(0, 220, 0, 340)
-    preview.ClipsDescendants = true
-    Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 6)
-
-    -- position to the right of the core window
-    local core = ScreenGui:FindFirstChild("core", true)
-    if core then
-        preview.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
-        -- keep it there if window moves
-        game:GetService("RunService").RenderStepped:Connect(function()
-            preview.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
-        end)
-    else
-        preview.Position = UDim2.new(0.5, 50, 0.14, 0)
-    end
+    ESPPreviewFrame = Instance.new("Frame")
+    ESPPreviewFrame.Name = "ESPPreview"
+    ESPPreviewFrame.Parent = ScreenGui
+    ESPPreviewFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+    ESPPreviewFrame.BorderColor3 = Color3.fromRGB(8, 8, 8)
+    ESPPreviewFrame.Size = UDim2.new(0, 220, 0, 340)
+    ESPPreviewFrame.ClipsDescendants = true
+    ESPPreviewFrame.Visible = false
+    Instance.new("UICorner", ESPPreviewFrame).CornerRadius = UDim.new(0, 6)
 
     local inner = Instance.new("Frame")
-    inner.Parent = preview
+    inner.Parent = ESPPreviewFrame
     inner.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
     inner.BorderSizePixel = 0
     inner.Position = UDim2.new(0, 1, 0, 1)
@@ -212,7 +180,6 @@ do
     canvas.Position = UDim2.new(0, 0, 0, 24)
     canvas.Size = UDim2.new(1, 0, 1, -30)
 
-    -- helpers
     local function mkLine(parent, p, s, rot, col)
         local l = Instance.new("Frame")
         l.Parent = parent
@@ -226,7 +193,7 @@ do
         return l
     end
 
-    local function mkText(parent, p, s, txt, col, sz, align)
+    local function mkText(parent, p, s, txt, col, sz)
         local t = Instance.new("TextLabel")
         t.Parent = parent
         t.BackgroundTransparency = 1
@@ -238,18 +205,17 @@ do
         t.TextSize = sz or 11
         t.TextStrokeTransparency = 0.3
         t.ZIndex = 10
-        t.TextXAlignment = align or Enum.TextXAlignment.Center
+        t.TextXAlignment = Enum.TextXAlignment.Center
         return t
     end
 
     local cx = 0.5
-    local headY  = 0.12
-    local neckY  = 0.21
-    local shY    = 0.25
-    local hipY   = 0.52
-    local kneeY  = 0.72
+    local headY = 0.12
+    local neckY = 0.21
+    local shY   = 0.25
+    local hipY  = 0.52
+    local kneeY = 0.72
 
-    -- head
     local head = Instance.new("Frame")
     head.Parent = canvas
     head.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -260,26 +226,18 @@ do
     head.Size = UDim2.new(0, 18, 0, 18)
     head.ZIndex = 4
 
-    -- spine
     mkLine(canvas, UDim2.new(cx, 0, (neckY + hipY) / 2, 0), UDim2.new(0, 2, 0, (hipY - neckY) * 280), 0, skelColor)
-    -- shoulders
     mkLine(canvas, UDim2.new(cx, 0, shY, 0), UDim2.new(0, 36, 0, 2), 0, skelColor)
-    -- left arm
     mkLine(canvas, UDim2.new(cx - 0.04, 0, shY, 0), UDim2.new(0, 2, 0, 32), 25, skelColor)
     mkLine(canvas, UDim2.new(cx - 0.058, 0, shY + 0.06, 0), UDim2.new(0, 2, 0, 28), 5, skelColor)
-    -- right arm
     mkLine(canvas, UDim2.new(cx + 0.04, 0, shY, 0), UDim2.new(0, 2, 0, 32), -25, skelColor)
     mkLine(canvas, UDim2.new(cx + 0.058, 0, shY + 0.06, 0), UDim2.new(0, 2, 0, 28), -5, skelColor)
-    -- hips
     mkLine(canvas, UDim2.new(cx, 0, hipY, 0), UDim2.new(0, 22, 0, 2), 0, skelColor)
-    -- left leg
     mkLine(canvas, UDim2.new(cx - 0.028, 0, hipY, 0), UDim2.new(0, 2, 0, 50), 8, skelColor)
     mkLine(canvas, UDim2.new(cx - 0.038, 0, kneeY, 0), UDim2.new(0, 2, 0, 50), 3, skelColor)
-    -- right leg
     mkLine(canvas, UDim2.new(cx + 0.028, 0, hipY, 0), UDim2.new(0, 2, 0, 50), -8, skelColor)
     mkLine(canvas, UDim2.new(cx + 0.038, 0, kneeY, 0), UDim2.new(0, 2, 0, 50), -3, skelColor)
 
-    -- box
     local bx = cx - 0.11
     local by = headY - 0.06
     local bw = 0.22
@@ -289,7 +247,6 @@ do
     mkLine(canvas, UDim2.new(bx, 0, (by + by + bh) / 2, 0), UDim2.new(0, 2, 0, bh * 280), 0, boxColor)
     mkLine(canvas, UDim2.new(bx + bw, 0, (by + by + bh) / 2, 0), UDim2.new(0, 2, 0, bh * 280), 0, boxColor)
 
-    -- health bar
     local hbX = bx - 0.028
     local hbTop = by + 0.01
     local hbBot = by + bh - 0.01
@@ -314,37 +271,20 @@ do
     hbFill.ZIndex = 7
 
     mkText(canvas, UDim2.new(hbX - 0.03, 0, hbTop - 0.03, 0), UDim2.new(0, 28, 0, 12), "72", hpHigh, 10)
-
-    -- name
     mkText(canvas, UDim2.new(cx, 0, by - 0.04, 0), UDim2.new(0, 120, 0, 14), "PlayerName", Color3.fromRGB(255, 255, 255), 12)
-    -- distance
     mkText(canvas, UDim2.new(cx, 0, by + bh + 0.01, 0), UDim2.new(0, 60, 0, 12), "[24m]", Color3.fromRGB(180, 180, 180), 10)
-    -- weapon
     mkText(canvas, UDim2.new(cx, 0, by + bh + 0.03, 0), UDim2.new(0, 80, 0, 12), "AK-47", accent, 9)
-    -- tracer
     mkLine(canvas, UDim2.new(0.5, 0, 1, 0), UDim2.new(0, 1, 0, (1 - (by + bh)) * 280 - 8), 0, accent)
 end
 
--- ═══════════════════════════════════════════════════
--- COMBAT TAB
--- ═══════════════════════════════════════════════════
 local TrigGroup = CombatTab:CreateGroupbox("Triggerbot")
 TrigGroup:CreateToggle("Enable Triggerbot", function(v)
     Trig_Enabled = v
     Notify("Triggerbot", v and "ON" or "OFF", 2)
 end):CreateKeyBind("T")
+TrigGroup:CreateSlider("Max Distance", 100, 2000, 500, function(v) Trig_MaxDist = v end)
+TrigGroup:CreateSlider("Delay (ms)", 0, 200, 0, function(v) Trig_Delay = v end)
 
-TrigGroup:CreateSlider("Max Distance", 100, 2000, 500, function(v)
-    Trig_MaxDist = v
-end)
-
-TrigGroup:CreateSlider("Delay (ms)", 0, 200, 0, function(v)
-    Trig_Delay = v
-end)
-
--- ═══════════════════════════════════════════════════
--- VISUALS TAB
--- ═══════════════════════════════════════════════════
 local ESPGroup = VisualsTab:CreateGroupbox("Skeleton ESP")
 ESPGroup:CreateToggle("Enable ESP", function(v)
     ESP_Enabled = v
@@ -353,36 +293,13 @@ ESPGroup:CreateToggle("Enable ESP", function(v)
     end
     Notify("Skeleton ESP", v and "ON" or "OFF", 2)
 end):CreateKeyBind("P")
+ESPGroup:CreateSlider("Thickness", 1, 5, 1, function(v) ESP_Thickness = v end)
+ESPGroup:CreateSlider("Max Distance", 500, 5000, 2000, function(v) ESP_MaxDist = v end)
+ESPGroup:CreateToggle("Show Health Bar", function(v) ESP_ShowHealth = v end)
+ESPGroup:CreateToggle("Show Tracers", function(v) ESP_ShowTracer = v end)
+ESPGroup:CreateToggle("Hide Local Player", function(v) ESP_HideLocal = v end)
+ESPGroup:CreateToggle("Team Check", function(v) ESP_TeamCheck = v end)
 
-ESPGroup:CreateSlider("Thickness", 1, 5, 1, function(v)
-    ESP_Thickness = v
-end)
-
-ESPGroup:CreateSlider("Max Distance", 500, 5000, 2000, function(v)
-    ESP_MaxDist = v
-end)
-
-ESPGroup:CreateToggle("Show Health Bar", function(v)
-    ESP_ShowHealth = v
-end)
-
-ESPGroup:CreateToggle("Show Tracers", function(v)
-    ESP_ShowTracer = v
-end)
-
-ESPGroup:CreateToggle("Hide Local Player", function(v)
-    ESP_HideLocal = v
-end)
-
-ESPGroup:CreateToggle("Team Check", function(v)
-    ESP_TeamCheck = v
-end)
-
--- ═══════════════════════════════════════════════════
--- SOUNDS TAB
--- ═══════════════════════════════════════════════════
-
--- preset sound library: name → asset id
 local HitSounds = {
     ["None"]        = "rbxassetid://0",
     ["Skeet"]       = "rbxassetid://5447626464",
@@ -408,74 +325,57 @@ local HitSounds = {
     ["Dababy"]      = "rbxassetid://6559380085",
     ["Welcome"]     = "rbxassetid://5149595745",
 }
-
 local ShootSounds = {
-    ["None"]        = "rbxassetid://0",
-    ["Silencer"]    = "rbxassetid://1415221962",
-    ["Laser"]       = "rbxassetid://1651687704",
-    ["Rust Bang"]   = "rbxassetid://2920959",
-    ["Phaser"]      = "rbxassetid://269158884",
-    ["Blaster"]     = "rbxassetid://16211026",
-    ["Pop"]         = "rbxassetid://3205573783",
+    ["None"]      = "rbxassetid://0",
+    ["Silencer"]  = "rbxassetid://1415221962",
+    ["Laser"]     = "rbxassetid://1651687704",
+    ["Rust Bang"] = "rbxassetid://2920959",
+    ["Phaser"]    = "rbxassetid://269158884",
+    ["Blaster"]   = "rbxassetid://16211026",
+    ["Pop"]       = "rbxassetid://3205573783",
 }
-
 local KillSounds = {
-    ["None"]        = "rbxassetid://0",
-    ["Metal Pipe"]  = "rbxassetid://1316391753",
+    ["None"]          = "rbxassetid://0",
+    ["Metal Pipe"]    = "rbxassetid://1316391753",
     ["Rust Headshot"] = "rbxassetid://103094294870161",
-    ["TF2 Crit"]    = "rbxassetid://312947118",
-    ["Vine Boom"]   = "rbxassetid://6006265990",
-    ["Bazinga"]     = "rbxassetid://1387505453",
+    ["TF2 Crit"]      = "rbxassetid://312947118",
+    ["Vine Boom"]     = "rbxassetid://6006265990",
+    ["Bazinga"]       = "rbxassetid://1387505453",
 }
 
-local HitSoundID   = "rbxassetid://0"
-local ShootSoundID = "rbxassetid://0"
-local KillSoundID  = "rbxassetid://0"
+local function BuildNames(tbl)
+    local names = {}
+    for k in pairs(tbl) do names[#names+1] = k end
+    table.sort(names)
+    return names
+end
 
--- build display names for dropdowns
-local HitNames, ShootNames, KillNames = {}, {}, {}
-for k in pairs(HitSounds)   do HitNames[#HitNames+1] = k end
-for k in pairs(ShootSounds) do ShootNames[#ShootNames+1] = k end
-for k in pairs(KillSounds)  do KillNames[#KillNames+1] = k end
-table.sort(HitNames)
-table.sort(ShootNames)
-table.sort(KillNames)
+local HitNames   = BuildNames(HitSounds)
+local ShootNames = BuildNames(ShootSounds)
+local KillNames  = BuildNames(KillSounds)
 
--- ═══════════════════════════════════════════════════
--- SOUND ENGINE — scan everything, replace everything
--- ═══════════════════════════════════════════════════
 local SoundGroup = SoundsTab:CreateGroupbox("Preset Sounds")
-
 SoundGroup:CreateDropdown("Hit Sound", HitNames, function(v)
     HitSoundID = HitSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Hit: " .. v, 2)
 end):SetOption("None")
-
 SoundGroup:CreateDropdown("Shoot Sound", ShootNames, function(v)
     ShootSoundID = ShootSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Shoot: " .. v, 2)
 end):SetOption("None")
-
 SoundGroup:CreateDropdown("Kill Sound", KillNames, function(v)
     KillSoundID = KillSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Kill: " .. v, 2)
 end):SetOption("None")
 
-local CustomGroup = SoundsTab:CreateGroupbox("Custom IDs")
-
-CustomGroup:CreateButton("Reset All Sounds", function()
+local CustomSoundGroup = SoundsTab:CreateGroupbox("Custom IDs")
+CustomSoundGroup:CreateButton("Reset All Sounds", function()
     HitSoundID = "rbxassetid://0"
     ShootSoundID = "rbxassetid://0"
     KillSoundID = "rbxassetid://0"
     Notify("Sounds", "All IDs reset", 3)
 end)
 
--- ═══════════════════════════════════════════════════
--- SKINS TAB — Desert Eagle + Knife skins
--- ═══════════════════════════════════════════════════
-local SkinsTab = Window:CreateTab("Skins")
-
--- all DE skins from CaseConfig (forAllGun = true)
 local DESkinList = {
     "Default",
     "Burned", "404", "Caution",
@@ -495,36 +395,15 @@ table.sort(DESkinList)
 local DESkinGroup = SkinsTab:CreateGroupbox("Desert Eagle Skins")
 DESkinGroup:CreateDropdown("Skin", DESkinList, function(v)
     DESkinName = v
-    if v == "Default" then
-        DESkinID = "rbxassetid://110831261114219"
-    else
-        DESkinID = "lookup"
-    end
+    DESkinID = (v == "Default") and "rbxassetid://110831261114219" or "lookup"
     Notify("Skins", "DE: " .. v, 2)
 end):SetOption("Default")
 
--- knife skin names (discovered from RS.Textures.M9Bayonet)
-local KnifeSkinList = {
-    "Default",
-}
--- try to discover knife skins at runtime
+local KnifeSkinList = {"Default"}
 pcall(function()
     local tex = RS:FindFirstChild("Textures")
     if tex then
-        local knifeFolder = tex:FindFirstChild("M9Bayonet")
-        if knifeFolder then
-            for _, rarity in ipairs(knifeFolder:GetChildren()) do
-                if rarity:IsA("Folder") then
-                    for _, skin in ipairs(rarity:GetChildren()) do
-                        if skin:IsA("Folder") then
-                            KnifeSkinList[#KnifeSkinList+1] = skin.Name
-                        end
-                    end
-                end
-            end
-        end
-        -- also butterfly/karambit
-        for _, knife in ipairs({"Butterfly", "Karambit"}) do
+        for _, knife in ipairs({"M9Bayonet", "Butterfly", "Karambit"}) do
             local kf = tex:FindFirstChild(knife)
             if kf then
                 for _, rarity in ipairs(kf:GetChildren()) do
@@ -548,7 +427,6 @@ KnifeGroup:CreateDropdown("Skin", KnifeSkinList, function(v)
     Notify("Skins", "Knife: " .. v, 2)
 end):SetOption("Default")
 
--- custom skin ID textbox
 local function CreateTextbox(parent, label, default, callback)
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1, -8, 0, 24)
@@ -580,10 +458,7 @@ local function CreateTextbox(parent, label, default, callback)
     box.TextXAlignment = Enum.TextXAlignment.Left
     box.Parent = f
 
-    box.FocusLost:Connect(function()
-        callback(box.Text)
-    end)
-
+    box.FocusLost:Connect(function() callback(box.Text) end)
     return box
 end
 
@@ -596,9 +471,6 @@ CreateTextbox(CustomSkinGroup, "Texture ID", "rbxassetid://", function(v)
     end
 end)
 
--- ═══════════════════════════════════════════════════
--- ESP ENGINE
--- ═══════════════════════════════════════════════════
 local R15 = {
     {"HumanoidRootPart", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
     {"UpperTorso", "Head"}, {"UpperTorso", "LeftUpperArm"},
@@ -652,13 +524,32 @@ local function MakeQuad()
     return q
 end
 
+local function MakeTextDrawing()
+    local d = Drawing.new("Text")
+    d.Visible = false
+    d.Color = Color3.fromRGB(255, 255, 255)
+    d.Size = 14
+    d.Center = true
+    d.Outline = true
+    d.OutlineColor = Color3.fromRGB(0, 0, 0)
+    d.Font = 2
+    d.ZIndex = 1000
+    return d
+end
+
 local function CreateESP(player)
     if ESP[player] then return end
-    local e = { lines = {}, hpBar = nil, hpBg = nil, tracer = nil }
+    local e = {lines = {}, hpBar = nil, hpBg = nil, tracer = nil, name = nil, dist = nil, weapon = nil}
     for i = 1, 15 do e.lines[i] = MakeLine() end
     e.tracer = MakeLine()
     e.hpBg = MakeQuad()
     e.hpBar = MakeQuad()
+    e.name = MakeTextDrawing()
+    e.dist = MakeTextDrawing()
+    e.dist.Size = 12
+    e.weapon = MakeTextDrawing()
+    e.weapon.Size = 11
+    e.weapon.Color = Color3.fromRGB(0, 255, 255)
     ESP[player] = e
 end
 
@@ -666,10 +557,29 @@ function DestroyESP(player)
     local e = ESP[player]
     if not e then return end
     for _, l in ipairs(e.lines) do pcall(function() l:Remove() end) end
-    if e.tracer then pcall(function() e.tracer:Remove() end) end
-    if e.hpBg then pcall(function() e.hpBg:Remove() end) end
-    if e.hpBar then pcall(function() e.hpBar:Remove() end) end
+    pcall(function() e.tracer:Remove() end)
+    pcall(function() e.hpBg:Remove() end)
+    pcall(function() e.hpBar:Remove() end)
+    pcall(function() e.name:Remove() end)
+    pcall(function() e.dist:Remove() end)
+    pcall(function() e.weapon:Remove() end)
     ESP[player] = nil
+end
+
+local function HideESP(e)
+    for _, l in ipairs(e.lines) do l.Visible = false end
+    e.tracer.Visible = false
+    e.hpBg.Visible = false
+    e.hpBar.Visible = false
+    e.name.Visible = false
+    e.dist.Visible = false
+    e.weapon.Visible = false
+end
+
+local function GetWeaponName(char)
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then return tool.Name end
+    return ""
 end
 
 local function RenderESP()
@@ -680,26 +590,30 @@ local function RenderESP()
             continue
         end
 
+        if ESP_TeamCheck and plr.Team and plr.Team == LP.Team then
+            if ESP[plr] then DestroyESP(plr) end
+            continue
+        end
+
         local char = plr.Character
         local bones = char and GetBones(char)
         local show = false
+        local dist = 0
 
         if ESP_Enabled and bones and IsAlive(char) then
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if hrp then
-                local _, on, dist = W2S(hrp.Position)
-                if on and dist <= ESP_MaxDist then show = true end
+                local _, on, d = W2S(hrp.Position)
+                if on and d <= ESP_MaxDist then
+                    show = true
+                    dist = math.floor(d)
+                end
             end
         end
 
         local e = ESP[plr]
         if not show then
-            if e then
-                for _, l in ipairs(e.lines) do l.Visible = false end
-                e.tracer.Visible = false
-                e.hpBg.Visible = false
-                e.hpBar.Visible = false
-            end
+            if e then HideESP(e) end
             continue
         end
 
@@ -724,46 +638,73 @@ local function RenderESP()
         end
         for i = count + 1, 15 do e.lines[i].Visible = false end
 
-        if ESP_ShowHealth then
-            local head = char:FindFirstChild("Head")
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if head and humanoid then
-                local top, topOn = W2S(head.Position + Vector3.new(0, 0.6, 0))
-                local bot, botOn = W2S(head.Position + Vector3.new(0, -3.2, 0))
-                if topOn and botOn then
-                    local barW, barX = 3, top.X - 8
-                    local barH = bot.Y - top.Y
-                    local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                    e.hpBg.PointA = Vector2.new(barX, top.Y)
-                    e.hpBg.PointB = Vector2.new(barX + barW, top.Y)
-                    e.hpBg.PointC = Vector2.new(barX + barW, top.Y + barH)
-                    e.hpBg.PointD = Vector2.new(barX, top.Y + barH)
-                    e.hpBg.Visible = true
-                    local fill = barH * hp
-                    e.hpBar.PointA = Vector2.new(barX, top.Y + barH - fill)
-                    e.hpBar.PointB = Vector2.new(barX + barW, top.Y + barH - fill)
-                    e.hpBar.PointC = Vector2.new(barX + barW, top.Y + barH)
-                    e.hpBar.PointD = Vector2.new(barX, top.Y + barH)
-                    e.hpBar.Visible = true
-                    e.hpBar.Color = hp > 0.5 and Color3.fromRGB(0, 255, 255) or hp > 0.25 and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(255, 50, 50)
-                else
-                    e.hpBg.Visible = false
-                    e.hpBar.Visible = false
-                end
+        local head = char:FindFirstChild("Head")
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if head and humanoid then
+            local top, topOn = W2S(head.Position + Vector3.new(0, 0.6, 0))
+            local bot, botOn = W2S(head.Position + Vector3.new(0, -3.2, 0))
+
+            if ESP_ShowHealth and topOn and botOn then
+                local barW, barX = 3, top.X - 8
+                local barH = bot.Y - top.Y
+                local hp = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                e.hpBg.PointA = Vector2.new(barX, top.Y)
+                e.hpBg.PointB = Vector2.new(barX + barW, top.Y)
+                e.hpBg.PointC = Vector2.new(barX + barW, top.Y + barH)
+                e.hpBg.PointD = Vector2.new(barX, top.Y + barH)
+                e.hpBg.Visible = true
+                local fill = barH * hp
+                e.hpBar.PointA = Vector2.new(barX, top.Y + barH - fill)
+                e.hpBar.PointB = Vector2.new(barX + barW, top.Y + barH - fill)
+                e.hpBar.PointC = Vector2.new(barX + barW, top.Y + barH)
+                e.hpBar.PointD = Vector2.new(barX, top.Y + barH)
+                e.hpBar.Visible = true
+                e.hpBar.Color = hp > 0.5 and Color3.fromRGB(0, 255, 255) or hp > 0.25 and Color3.fromRGB(255, 165, 0) or Color3.fromRGB(255, 50, 50)
             else
                 e.hpBg.Visible = false
                 e.hpBar.Visible = false
             end
+
+            if topOn then
+                e.name.Position = Vector2.new(top.X, top.Y - 18)
+                e.name.Text = plr.DisplayName
+                e.name.Visible = true
+
+                e.dist.Position = Vector2.new(top.X, botOn and bot.Y + 4 or top.Y + 40)
+                e.dist.Text = "[" .. dist .. "m]"
+                e.dist.Visible = true
+
+                e.weapon.Position = Vector2.new(top.X, botOn and bot.Y + 18 or top.Y + 54)
+                e.weapon.Text = GetWeaponName(char)
+                e.weapon.Visible = true
+
+                if ESP_ShowTracer then
+                    local screenW = Camera.ViewportSize.X
+                    e.tracer.From = Vector2.new(screenW / 2, Camera.ViewportSize.Y)
+                    e.tracer.To = Vector2.new(top.X, botOn and bot.Y or top.Y + 40)
+                    e.tracer.Visible = true
+                    e.tracer.Color = Color3.fromRGB(0, 255, 255)
+                    e.tracer.Thickness = ESP_Thickness
+                else
+                    e.tracer.Visible = false
+                end
+            else
+                e.name.Visible = false
+                e.dist.Visible = false
+                e.weapon.Visible = false
+                e.tracer.Visible = false
+            end
         else
             e.hpBg.Visible = false
             e.hpBar.Visible = false
+            e.name.Visible = false
+            e.dist.Visible = false
+            e.weapon.Visible = false
+            e.tracer.Visible = false
         end
     end
 end
 
--- ═══════════════════════════════════════════════════
--- TRIGGERBOT ENGINE
--- ═══════════════════════════════════════════════════
 local LastClick = 0
 local ValidParts = {}
 for _, name in ipairs({"Head", "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart",
@@ -801,7 +742,7 @@ local function RenderTriggerbot()
     local rayDir = Camera.CFrame:VectorToWorldSpace(Vector3.new(0, 0, -1))
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = { LP.Character }
+    params.FilterDescendantsInstances = {LP.Character}
     params.RespectCanCollide = false
 
     local result = workspace:Raycast(rayOrigin, rayDir * Trig_MaxDist, params)
@@ -835,9 +776,6 @@ local function RenderTriggerbot()
     Notify("Triggerbot", hitName .. " - " .. hitPart.Name .. " - " .. hpPct .. "% HP", 2)
 end
 
--- ═══════════════════════════════════════════════════
--- SOUND ENGINE — scans entire workspace, locks sounds
--- ═══════════════════════════════════════════════════
 local function ScanAndReplace()
     if HitSoundID == "rbxassetid://0" and ShootSoundID == "rbxassetid://0" and KillSoundID == "rbxassetid://0" then return end
 
@@ -859,13 +797,7 @@ local function ScanAndReplace()
     end
 end
 
--- ═══════════════════════════════════════════════════
--- SKIN ENGINE — mirrors game's exact skin application
--- targets FPS model (first person) + world model
--- ═══════════════════════════════════════════════════
-local RS = game:GetService("ReplicatedStorage")
 local Textures = RS:FindFirstChild("Textures")
-
 local FACES = {
     Enum.NormalId.Front, Enum.NormalId.Back,
     Enum.NormalId.Top, Enum.NormalId.Bottom,
@@ -916,9 +848,7 @@ local function getSkinTexture(weaponName, skinName)
     for _, rarity in ipairs(wf:GetChildren()) do
         if rarity:IsA("Folder") then
             local sf = rarity:FindFirstChild(skinName)
-            if sf then
-                return sf:FindFirstChild("TextureImage")
-            end
+            if sf then return sf:FindFirstChild("TextureImage") end
         end
     end
     return nil
@@ -951,35 +881,29 @@ end
 
 local function ApplyDESkins()
     if DESkinName == "Default" then return end
-
     local tool = FindTool("Desert Eagle")
     if not tool then return end
 
-    -- try FPS model first (first person view), then world model
     local models = {}
     local fps = getFPSModel(tool)
     if fps then models[#models+1] = fps end
     local worldModel = tool:FindFirstChild("Desert Eagle")
     if worldModel then models[#models+1] = worldModel end
 
-    -- get texture source
     local texSource = nil
     if DESkinID == "lookup" then
         texSource = getSkinTexture("Desert Eagle", DESkinName)
     end
 
     for _, model in ipairs(models) do
-        -- clear existing textures
         for _, v in ipairs(model:GetDescendants()) do
             if isForTexturePart(v) then clearTextures(v) end
         end
-        -- apply new textures
         if texSource then
             for _, v in ipairs(model:GetDescendants()) do
                 if isForTexturePart(v) then applyTexToPart(v, texSource) end
             end
         elseif DESkinID ~= "lookup" then
-            -- custom ID
             local tmp = Instance.new("Texture")
             tmp.Texture = DESkinID
             for _, v in ipairs(model:GetDescendants()) do
@@ -992,8 +916,6 @@ end
 
 local function ApplyKnifeSkins()
     if KnifeSkinName == "Default" then return end
-
-    -- find any knife tool
     local knifeNames = {"M9Bayonet", "Butterfly", "Karambit"}
     local tool, weaponName
     for _, name in ipairs(knifeNames) do
@@ -1022,14 +944,21 @@ local function ApplyKnifeSkins()
     end
 end
 
--- ═══════════════════════════════════════════════════
--- MAIN LOOP
--- ═══════════════════════════════════════════════════
 local SoundTick = 0
 Connections.render = RunService.RenderStepped:Connect(function()
+    DetectActiveTab()
+    ESPPreviewFrame.Visible = (ActiveTabIndex == 3)
+
+    if ESPPreviewFrame.Visible then
+        local core = ScreenGui:FindFirstChild("core", true)
+        if core then
+            ESPPreviewFrame.Position = UDim2.new(0, core.AbsolutePosition.X + core.AbsoluteSize.X + 12, 0, core.AbsolutePosition.Y)
+        end
+    end
+
     pcall(RenderESP)
     pcall(RenderTriggerbot)
-    -- re-apply sounds + skins every ~1 second
+
     SoundTick = SoundTick + 1
     if SoundTick >= 60 then
         SoundTick = 0
@@ -1039,9 +968,6 @@ Connections.render = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ═══════════════════════════════════════════════════
--- PLAYER TRACKING
--- ═══════════════════════════════════════════════════
 Connections.playerAdded = Players.PlayerAdded:Connect(function(p)
     if ESP_Enabled then pcall(CreateESP, p) end
 end)
@@ -1054,26 +980,17 @@ for _, p in ipairs(Players:GetPlayers()) do
     if p ~= LP or not ESP_HideLocal then pcall(CreateESP, p) end
 end
 
--- immediate first scan after load
 task.delay(2, function()
     pcall(ScanAndReplace)
 end)
 
--- ═══════════════════════════════════════════════════
--- CLEANUP
--- ═══════════════════════════════════════════════════
 local function Unload()
-    -- disconnect all event connections
     for k, v in pairs(Connections) do
         pcall(function() if v and v.Connected then v:Disconnect() end end)
     end
     Connections = {}
-
-    -- destroy all ESP drawings
     for p, _ in pairs(ESP) do pcall(DestroyESP, p) end
     ESP = {}
-
-    -- kill the UI (also kills any old instances with same name)
     for _, gui in ipairs(CoreGui:GetChildren()) do
         if gui.Name == "neverloose" and gui:IsA("ScreenGui") then
             pcall(function() gui:Destroy() end)
@@ -1083,8 +1000,6 @@ local function Unload()
         pcall(function() UIScreen:Destroy() end)
         UIScreen = nil
     end
-
-    -- also check PlayerGui fallback
     pcall(function()
         for _, gui in ipairs(LP.PlayerGui:GetChildren()) do
             if gui.Name == "neverloose" and gui:IsA("ScreenGui") then
@@ -1092,13 +1007,9 @@ local function Unload()
             end
         end
     end)
-
     _G[GLOBAL_KEY] = nil
     _G[CLEANUP_KEY] = nil
-    _G[UI_KEY] = nil
-    print("[neverloose] cleaned up.")
 end
 
 _G[CLEANUP_KEY] = Unload
-
-print("[neverloose] v" .. VERSION .. " loaded — RightShift to toggle UI")
+print("[neverloose] v" .. VERSION .. " loaded")
