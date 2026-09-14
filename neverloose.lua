@@ -221,10 +221,10 @@ do
     head.AnchorPoint = Vector2.new(0.5, 0.5)
     head.BackgroundColor3 = skelColor
     head.BackgroundTransparency = 0.3
-    head.Shape = Enum.FrameType.Circle
     head.Position = UDim2.new(cx, 0, headY, 0)
     head.Size = UDim2.new(0, 18, 0, 18)
     head.ZIndex = 4
+    Instance.new("UICorner", head).CornerRadius = UDim.new(1, 0)
 
     mkLine(canvas, UDim2.new(cx, 0, (neckY + hipY) / 2, 0), UDim2.new(0, 2, 0, (hipY - neckY) * 280), 0, skelColor)
     mkLine(canvas, UDim2.new(cx, 0, shY, 0), UDim2.new(0, 36, 0, 2), 0, skelColor)
