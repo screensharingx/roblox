@@ -156,14 +156,6 @@ local SoundsTab   = Window:CreateTab("Sounds")
 -- ═══════════════════════════════════════════════════
 -- MENU TAB
 -- ═══════════════════════════════════════════════════
-local ESPPreviewGroup = MenuTab:CreateGroupbox("ESP Preview")
-ESPPreviewGroup:CreateESPPreview({
-    accent = Color3.fromRGB(0, 255, 255),
-    boxColor = Color3.fromRGB(0, 255, 0),
-    skeletonColor = Color3.fromRGB(255, 255, 255),
-    healthHigh = Color3.fromRGB(0, 255, 0),
-    healthLow = Color3.fromRGB(255, 0, 0),
-})
 
 -- ═══════════════════════════════════════════════════
 -- COMBAT TAB
@@ -205,6 +197,16 @@ end)
 ESPGroup:CreateToggle("Show Health Bar", function(v)
     ESP_ShowHealth = v
 end)
+
+-- ESP preview on right side
+local ESPPreviewGroup = VisualsTab:CreateGroupbox("ESP Preview", "Right")
+ESPPreviewGroup:CreateESPPreview({
+    accent = Color3.fromRGB(0, 255, 255),
+    boxColor = Color3.fromRGB(0, 255, 0),
+    skeletonColor = Color3.fromRGB(255, 255, 255),
+    healthHigh = Color3.fromRGB(0, 255, 0),
+    healthLow = Color3.fromRGB(255, 0, 0),
+})
 
 ESPGroup:CreateToggle("Show Tracers", function(v)
     ESP_ShowTracer = v
