@@ -6,9 +6,10 @@
         Combat  — Triggerbot
         Visuals — Skeleton ESP, Health Bars, Tracers
         Sounds  — Hit / Shoot / Kill sounds
+        Skins   — Desert Eagle textures, M9Bayonet colors
     
-    Press RightControl to toggle UI.
-    VERSION: 3
+    Press RightShift to toggle UI.
+    VERSION: 5
 ]]
 
 -- ═══════════════════════════════════════════════════
@@ -129,6 +130,9 @@ local ESP_ShowHealth   = true
 local ESP_ShowTracer   = false
 local ESP_HideLocal    = true
 local ESP_TeamCheck    = false
+
+local DESkinID   = "rbxassetid://0" -- Desert Eagle skin texture
+local KnifeSkinColor = nil           -- M9Bayonet blade color
 
 local Connections = {}
 local ESP = {}
@@ -291,6 +295,72 @@ CustomGroup:CreateButton("Reset All Sounds", function()
     KillSoundID = "rbxassetid://0"
     Notify("Sounds", "All IDs reset", 3)
 end)
+
+-- ═══════════════════════════════════════════════════
+-- SKINS TAB
+-- ═══════════════════════════════════════════════════
+local SkinsTab = Window:CreateTab("Skins")
+
+-- auto-discover skins from lobby shop
+local function DiscoverSkins()
+    local skins = {}
+    local shopModel = workspace:FindFirstChild("Lobby")
+    if shopModel then shopModel = shopModel:FindFirstChild("MoreLobbyItems") end
+    if shopModel then shopModel = shopModel:FindFirstChild("ShopModel") end
+    if not shopModel then return skins end
+
+    for _, skinModel in ipairs(shopModel:GetChildren()) do
+        if skinModel:IsA("Model") then
+            -- find first Texture to get the skin texture ID
+            for _, desc in ipairs(skinModel:GetDescendants()) do
+                if desc:IsA("Texture") then
+                    skins[skinModel.Name] = desc.Texture
+                    break
+                end
+            end
+        end
+    end
+    return skins
+end
+
+local DESkins = DiscoverSkins()
+local DESkinNames = {"None"}
+for name in pairs(DESkins) do DESkinNames[#DESkinNames+1] = name end
+table.sort(DESkinNames)
+
+-- knife blade colors
+local KnifeColors = {
+    ["None"]      = nil,
+    ["Red"]       = Color3.fromRGB(255, 0, 0),
+    ["Blue"]      = Color3.fromRGB(0, 100, 255),
+    ["Green"]     = Color3.fromRGB(0, 255, 0),
+    ["Yellow"]    = Color3.fromRGB(255, 255, 0),
+    ["Cyan"]      = Color3.fromRGB(0, 255, 255),
+    ["Magenta"]   = Color3.fromRGB(255, 0, 255),
+    ["Orange"]    = Color3.fromRGB(255, 165, 0),
+    ["Purple"]    = Color3.fromRGB(160, 0, 255),
+    ["White"]     = Color3.fromRGB(255, 255, 255),
+    ["Black"]     = Color3.fromRGB(0, 0, 0),
+    ["Neon"]      = Color3.fromRGB(0, 255, 255),
+    ["Gold"]      = Color3.fromRGB(255, 215, 0),
+    ["Hot Pink"]  = Color3.fromRGB(255, 105, 180),
+    ["Lime"]      = Color3.fromRGB(50, 255, 50),
+}
+local KnifeColorNames = {"None"}
+for name in pairs(KnifeColors) do if name ~= "None" then KnifeColorNames[#KnifeColorNames+1] = name end end
+table.sort(KnifeColorNames)
+
+local DESkinGroup = SkinsTab:CreateGroupbox("Desert Eagle")
+DESkinGroup:CreateDropdown("Skin", DESkinNames, function(v)
+    DESkinID = DESkins[v] or "rbxassetid://0"
+    Notify("Skins", "DE: " .. v, 2)
+end):SetOption("None")
+
+local KnifeGroup = SkinsTab:CreateGroupbox("M9Bayonet")
+KnifeGroup:CreateDropdown("Blade Color", KnifeColorNames, function(v)
+    KnifeSkinColor = KnifeColors[v]
+    Notify("Skins", "Knife: " .. v, 2)
+end):SetOption("None")
 
 -- ═══════════════════════════════════════════════════
 -- ESP ENGINE
@@ -556,17 +626,71 @@ local function ScanAndReplace()
 end
 
 -- ═══════════════════════════════════════════════════
+-- SKIN ENGINE — replaces weapon textures + colors
+-- ═══════════════════════════════════════════════════
+local function ApplySkins()
+    -- Desert Eagle: replace TextureImage on all ForTexture parts
+    if DESkinID ~= "rbxassetid://0" then
+        for _, player in ipairs(Players:GetPlayers()) do
+            local char = player.Character
+            if char then
+                local tool = char:FindFirstChild("Desert Eagle") or (LP:FindFirstChild("Backpack") and LP.Backpack:FindFirstChild("Desert Eagle"))
+                if tool then
+                    local model = tool:FindFirstChild("Desert Eagle")
+                    if model then
+                        for _, v in ipairs(model:GetDescendants()) do
+                            if v:IsA("Texture") and v.Name == "TextureImage" then
+                                if v.Texture ~= DESkinID then v.Texture = DESkinID end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- M9Bayonet: set blade color
+    if KnifeSkinColor then
+        for _, player in ipairs(Players:GetPlayers()) do
+            local char = player.Character
+            if char then
+                local tool = char:FindFirstChild("M9Bayonet") or (LP:FindFirstChild("Backpack") and LP.Backpack:FindFirstChild("M9Bayonet"))
+                if tool then
+                    local model = tool:FindFirstChild("M9Bayonet")
+                    if model then
+                        local blade = model:FindFirstChild("Blade")
+                        if blade and blade:IsA("BasePart") then
+                            if blade.Color ~= KnifeSkinColor then blade.Color = KnifeSkinColor end
+                        end
+                        -- also color the details for full skin effect
+                        for _, part in ipairs(model:GetChildren()) do
+                            if part:IsA("BasePart") and part.Name ~= "Blade" then
+                                -- keep grip black, only color details
+                                if part.Name:find("Detail") then
+                                    if part.Color ~= KnifeSkinColor then part.Color = KnifeSkinColor end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- ═══════════════════════════════════════════════════
 -- MAIN LOOP
 -- ═══════════════════════════════════════════════════
 local SoundTick = 0
 Connections.render = RunService.RenderStepped:Connect(function()
     pcall(RenderESP)
     pcall(RenderTriggerbot)
-    -- re-apply sounds every ~3 seconds (cheap scan, keeps them locked)
+    -- re-apply sounds + skins every ~1 second
     SoundTick = SoundTick + 1
-    if SoundTick >= 180 then -- ~3s at 60fps
+    if SoundTick >= 60 then
         SoundTick = 0
         pcall(ScanAndReplace)
+        pcall(ApplySkins)
     end
 end)
 
