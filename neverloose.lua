@@ -264,100 +264,26 @@ table.sort(ShootNames)
 table.sort(KillNames)
 
 -- ═══════════════════════════════════════════════════
--- SOUND REPLACEMENT ENGINE — targets ALL players
+-- SOUND ENGINE — scan everything, replace everything
 -- ═══════════════════════════════════════════════════
-local function ApplySoundsToCharacter(char)
-    if not char then return 0 end
-    local applied = 0
-
-    -- replace HitSound on every weapon
-    if HitSoundID ~= "rbxassetid://0" then
-        for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("Sound") and v.Name == "HitSound" then
-                v.SoundId = HitSoundID
-                applied = applied + 1
-            end
-        end
-    end
-
-    -- replace Shoot sounds on every weapon
-    if ShootSoundID ~= "rbxassetid://0" then
-        for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("Sound") and (v.Name == "Shoot1" or v.Name == "Shoot" or v.Name == "Fire") then
-                v.SoundId = ShootSoundID
-                applied = applied + 1
-            end
-        end
-    end
-
-    return applied
-end
-
-local function ApplySoundsToAll()
-    local applied = 0
-
-    -- every player's character in workspace
-    for _, player in ipairs(Players:GetPlayers()) do
-        applied = applied + ApplySoundsToCharacter(player.Character)
-    end
-
-    -- also scan workspace for any other character models we might have missed
-    for _, model in ipairs(workspace:GetChildren()) do
-        if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
-            local isKnown = false
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character == model then isKnown = true break end
-            end
-            if not isKnown then
-                applied = applied + ApplySoundsToCharacter(model)
-            end
-        end
-    end
-
-    -- EliminatedSound in SoundService (only once)
-    if KillSoundID ~= "rbxassetid://0" then
-        local elim = game:GetService("SoundService"):FindFirstChild("EliminatedSound")
-        if elim then
-            elim.SoundId = KillSoundID
-            applied = applied + 1
-        end
-    end
-
-    return applied
-end
-
 local SoundGroup = SoundsTab:CreateGroupbox("Preset Sounds")
 
 SoundGroup:CreateDropdown("Hit Sound", HitNames, function(v)
     HitSoundID = HitSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Hit: " .. v, 2)
-    ApplySoundsToAll()
 end):SetOption("None")
 
 SoundGroup:CreateDropdown("Shoot Sound", ShootNames, function(v)
     ShootSoundID = ShootSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Shoot: " .. v, 2)
-    ApplySoundsToAll()
 end):SetOption("None")
 
 SoundGroup:CreateDropdown("Kill Sound", KillNames, function(v)
     KillSoundID = KillSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Kill: " .. v, 2)
-    ApplySoundsToAll()
 end):SetOption("None")
 
--- custom ID group for manual entry
 local CustomGroup = SoundsTab:CreateGroupbox("Custom IDs")
-
-CustomGroup:CreateButton("Apply to ALL Players", function()
-    local applied = ApplySoundsToAll()
-    if applied == 0 then
-        Notify("Sounds", "No matching sounds found", 3)
-    else
-        Notify("Sounds", applied .. " sound(s) replaced (all players)", 3)
-        print("[neverloose] " .. applied .. " sound(s) applied globally")
-    end
-end)
 
 CustomGroup:CreateButton("Reset All Sounds", function()
     HitSoundID = "rbxassetid://0"
@@ -365,76 +291,6 @@ CustomGroup:CreateButton("Reset All Sounds", function()
     KillSoundID = "rbxassetid://0"
     Notify("Sounds", "All IDs reset", 3)
 end)
-
--- custom textboxes injected into the groupbox
-local function CreateTextbox(parent, label, default, callback)
-    local f = Instance.new("Frame")
-    f.Name = "textbox_" .. label
-    f.Size = UDim2.new(1, -8, 0, 24)
-    f.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    f.BorderSizePixel = 0
-    f.Parent = parent
-
-    local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(0.38, 0, 1, 0)
-    t.Position = UDim2.new(0, 8, 0, 0)
-    t.BackgroundTransparency = 1
-    t.Text = label
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.TextSize = 13
-    t.Font = Enum.Font.SourceSans
-    t.TextXAlignment = Enum.TextXAlignment.Left
-    t.Parent = f
-
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(0.58, 0, 0.75, 0)
-    box.Position = UDim2.new(0.4, 0, 0.125, 0)
-    box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    box.BorderSizePixel = 0
-    box.Text = default or ""
-    box.TextColor3 = Color3.fromRGB(200, 200, 200)
-    box.TextSize = 12
-    box.Font = Enum.Font.SourceSans
-    box.ClearTextOnFocus = false
-    box.TextXAlignment = Enum.TextXAlignment.Left
-    box.Parent = f
-
-    box.FocusLost:Connect(function()
-        callback(box.Text)
-    end)
-
-    return box
-end
-
-local function FindGroupboxContainer(groupbox)
-    for _, v in ipairs(groupbox:GetDescendants()) do
-        if (v.Name == "container" or v.Name == "Container" or v.Name == "Content") and v:IsA("Frame") then
-            return v
-        end
-    end
-    -- fallback: find the first ScrollingFrame or Frame that holds children
-    for _, v in ipairs(groupbox:GetDescendants()) do
-        if v:IsA("Frame") and #v:GetChildren() > 0 then
-            return v
-        end
-    end
-    return nil
-end
-
-local customContainer = FindGroupboxContainer(CustomGroup)
-if customContainer then
-    CreateTextbox(customContainer, "Hit ID", "rbxassetid://0", function(v)
-        HitSoundID = v
-    end)
-    CreateTextbox(customContainer, "Shoot ID", "rbxassetid://0", function(v)
-        ShootSoundID = v
-    end)
-    CreateTextbox(customContainer, "Kill ID", "rbxassetid://0", function(v)
-        KillSoundID = v
-    end)
-else
-    warn("[neverloose] could not find groupbox container for custom textboxes")
-end
 
 -- ═══════════════════════════════════════════════════
 -- ESP ENGINE
@@ -676,23 +532,49 @@ local function RenderTriggerbot()
 end
 
 -- ═══════════════════════════════════════════════════
+-- SOUND ENGINE — scans entire workspace, locks sounds
+-- ═══════════════════════════════════════════════════
+local function ScanAndReplace()
+    if HitSoundID == "rbxassetid://0" and ShootSoundID == "rbxassetid://0" and KillSoundID == "rbxassetid://0" then return end
+
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("Sound") then
+            if HitSoundID ~= "rbxassetid://0" and v.Name == "HitSound" then
+                if v.SoundId ~= HitSoundID then v.SoundId = HitSoundID end
+            elseif ShootSoundID ~= "rbxassetid://0" and (v.Name == "Shoot1" or v.Name == "Shoot" or v.Name == "Fire") then
+                if v.SoundId ~= ShootSoundID then v.SoundId = ShootSoundID end
+            end
+        end
+    end
+
+    if KillSoundID ~= "rbxassetid://0" then
+        local elim = game:GetService("SoundService"):FindFirstChild("EliminatedSound")
+        if elim and elim.SoundId ~= KillSoundID then
+            elim.SoundId = KillSoundID
+        end
+    end
+end
+
+-- ═══════════════════════════════════════════════════
 -- MAIN LOOP
 -- ═══════════════════════════════════════════════════
+local SoundTick = 0
 Connections.render = RunService.RenderStepped:Connect(function()
     pcall(RenderESP)
     pcall(RenderTriggerbot)
+    -- re-apply sounds every ~3 seconds (cheap scan, keeps them locked)
+    SoundTick = SoundTick + 1
+    if SoundTick >= 180 then -- ~3s at 60fps
+        SoundTick = 0
+        pcall(ScanAndReplace)
+    end
 end)
 
 -- ═══════════════════════════════════════════════════
--- PLAYER TRACKING + SOUND AUTO-APPLY
+-- PLAYER TRACKING
 -- ═══════════════════════════════════════════════════
 Connections.playerAdded = Players.PlayerAdded:Connect(function(p)
     if ESP_Enabled then pcall(CreateESP, p) end
-    -- re-apply sounds when new player's character loads
-    p.CharacterAdded:Connect(function(char)
-        task.wait(1) -- wait for weapons to load
-        pcall(ApplySoundsToAll)
-    end)
 end)
 
 Connections.playerRemoving = Players.PlayerRemoving:Connect(function(p)
@@ -703,15 +585,9 @@ for _, p in ipairs(Players:GetPlayers()) do
     if p ~= LP or not ESP_HideLocal then pcall(CreateESP, p) end
 end
 
--- auto-apply sounds on local player respawn
-Connections.localRespawn = LP.CharacterAdded:Connect(function(char)
-    task.wait(1)
-    pcall(ApplySoundsToAll)
-end)
-
--- initial apply after short delay (let weapons load)
+-- immediate first scan after load
 task.delay(2, function()
-    pcall(ApplySoundsToAll)
+    pcall(ScanAndReplace)
 end)
 
 -- ═══════════════════════════════════════════════════
