@@ -1457,49 +1457,15 @@ KnifeGroup:CreateDropdown("Skin", KnifeSkinList, function(v)
     Notify("Skins", "Knife: " .. v, 2)
 end):SetOption("Default")
 
-local function CreateTextbox(parent, label, default, callback)
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -8, 0, 24)
-    f.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    f.BorderSizePixel = 0
-    f.Parent = parent
-
-    local t = Instance.new("TextLabel")
-    t.Size = UDim2.new(0.35, 0, 1, 0)
-    t.Position = UDim2.new(0, 8, 0, 0)
-    t.BackgroundTransparency = 1
-    t.Text = label
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.TextSize = 13
-    t.Font = Enum.Font.SourceSans
-    t.TextXAlignment = Enum.TextXAlignment.Left
-    t.Parent = f
-
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(0.6, 0, 0.75, 0)
-    box.Position = UDim2.new(0.37, 0, 0.125, 0)
-    box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    box.BorderSizePixel = 0
-    box.Text = default or ""
-    box.TextColor3 = Color3.fromRGB(200, 200, 200)
-    box.TextSize = 12
-    box.Font = Enum.Font.SourceSans
-    box.ClearTextOnFocus = false
-    box.TextXAlignment = Enum.TextXAlignment.Left
-    box.Parent = f
-
-    box.FocusLost:Connect(function() callback(box.Text) end)
-    return box
-end
-
-local CustomSkinGroup = SkinsTab:CreateGroupbox("Custom Skin ID")
-CreateTextbox(CustomSkinGroup, "Texture ID", "rbxassetid://", function(v)
-    if v and v ~= "" and v ~= "rbxassetid://" then
-        DESkinID = v
+-- (Custom Skin ID group removed — use DE dropdown or set DESkinID manually)
+-- console: _G.setCustomSkin("rbxassetid://YOURID")
+_G.setCustomSkin = function(id)
+    if id and id ~= "" then
+        DESkinID = id
         DESkinName = "Custom"
-        Notify("Skins", "Custom skin applied", 2)
+        Notify("Skins", "Custom skin: " .. id, 2)
     end
-end)
+end
 
 local R15 = {
     {"HumanoidRootPart", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
