@@ -263,29 +263,6 @@ table.sort(HitNames)
 table.sort(ShootNames)
 table.sort(KillNames)
 
-local SoundGroup = SoundsTab:CreateGroupbox("Preset Sounds")
-
-SoundGroup:CreateDropdown("Hit Sound", HitNames, function(v)
-    HitSoundID = HitSounds[v] or "rbxassetid://0"
-    Notify("Sounds", "Hit: " .. v, 2)
-    ApplySoundsToAll()
-end):SetOption("None")
-
-SoundGroup:CreateDropdown("Shoot Sound", ShootNames, function(v)
-    ShootSoundID = ShootSounds[v] or "rbxassetid://0"
-    Notify("Sounds", "Shoot: " .. v, 2)
-    ApplySoundsToAll()
-end):SetOption("None")
-
-SoundGroup:CreateDropdown("Kill Sound", KillNames, function(v)
-    KillSoundID = KillSounds[v] or "rbxassetid://0"
-    Notify("Sounds", "Kill: " .. v, 2)
-    ApplySoundsToAll()
-end):SetOption("None")
-
--- custom ID group for manual entry
-local CustomGroup = SoundsTab:CreateGroupbox("Custom IDs")
-
 -- ═══════════════════════════════════════════════════
 -- SOUND REPLACEMENT ENGINE — targets ALL players
 -- ═══════════════════════════════════════════════════
@@ -327,7 +304,6 @@ local function ApplySoundsToAll()
     -- also scan workspace for any other character models we might have missed
     for _, model in ipairs(workspace:GetChildren()) do
         if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
-            -- check if this model belongs to a known player
             local isKnown = false
             for _, player in ipairs(Players:GetPlayers()) do
                 if player.Character == model then isKnown = true break end
@@ -349,6 +325,29 @@ local function ApplySoundsToAll()
 
     return applied
 end
+
+local SoundGroup = SoundsTab:CreateGroupbox("Preset Sounds")
+
+SoundGroup:CreateDropdown("Hit Sound", HitNames, function(v)
+    HitSoundID = HitSounds[v] or "rbxassetid://0"
+    Notify("Sounds", "Hit: " .. v, 2)
+    ApplySoundsToAll()
+end):SetOption("None")
+
+SoundGroup:CreateDropdown("Shoot Sound", ShootNames, function(v)
+    ShootSoundID = ShootSounds[v] or "rbxassetid://0"
+    Notify("Sounds", "Shoot: " .. v, 2)
+    ApplySoundsToAll()
+end):SetOption("None")
+
+SoundGroup:CreateDropdown("Kill Sound", KillNames, function(v)
+    KillSoundID = KillSounds[v] or "rbxassetid://0"
+    Notify("Sounds", "Kill: " .. v, 2)
+    ApplySoundsToAll()
+end):SetOption("None")
+
+-- custom ID group for manual entry
+local CustomGroup = SoundsTab:CreateGroupbox("Custom IDs")
 
 CustomGroup:CreateButton("Apply to ALL Players", function()
     local applied = ApplySoundsToAll()
