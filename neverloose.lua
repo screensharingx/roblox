@@ -268,32 +268,32 @@ local SoundGroup = SoundsTab:CreateGroupbox("Preset Sounds")
 SoundGroup:CreateDropdown("Hit Sound", HitNames, function(v)
     HitSoundID = HitSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Hit: " .. v, 2)
+    ApplySoundsToAll()
 end):SetOption("None")
 
 SoundGroup:CreateDropdown("Shoot Sound", ShootNames, function(v)
     ShootSoundID = ShootSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Shoot: " .. v, 2)
+    ApplySoundsToAll()
 end):SetOption("None")
 
 SoundGroup:CreateDropdown("Kill Sound", KillNames, function(v)
     KillSoundID = KillSounds[v] or "rbxassetid://0"
     Notify("Sounds", "Kill: " .. v, 2)
+    ApplySoundsToAll()
 end):SetOption("None")
 
 -- custom ID group for manual entry
 local CustomGroup = SoundsTab:CreateGroupbox("Custom IDs")
 
-CustomGroup:CreateButton("Apply Custom IDs", function()
+-- ═══════════════════════════════════════════════════
+-- SOUND REPLACEMENT ENGINE — targets ALL players
+-- ═══════════════════════════════════════════════════
+local function ApplySoundsToCharacter(char)
+    if not char then return 0 end
     local applied = 0
 
-    -- find local player's character in workspace
-    local char = LP.Character
-    if not char then
-        Notify("Sounds", "No character found", 3)
-        return
-    end
-
-    -- replace all HitSound objects on character weapons
+    -- replace HitSound on every weapon
     if HitSoundID ~= "rbxassetid://0" then
         for _, v in ipairs(char:GetDescendants()) do
             if v:IsA("Sound") and v.Name == "HitSound" then
@@ -303,7 +303,7 @@ CustomGroup:CreateButton("Apply Custom IDs", function()
         end
     end
 
-    -- replace all Shoot sounds on character weapons
+    -- replace Shoot sounds on every weapon
     if ShootSoundID ~= "rbxassetid://0" then
         for _, v in ipairs(char:GetDescendants()) do
             if v:IsA("Sound") and (v.Name == "Shoot1" or v.Name == "Shoot" or v.Name == "Fire") then
@@ -313,21 +313,50 @@ CustomGroup:CreateButton("Apply Custom IDs", function()
         end
     end
 
-    -- replace EliminatedSound in SoundService
+    return applied
+end
+
+local function ApplySoundsToAll()
+    local applied = 0
+
+    -- every player's character in workspace
+    for _, player in ipairs(Players:GetPlayers()) do
+        applied = applied + ApplySoundsToCharacter(player.Character)
+    end
+
+    -- also scan workspace for any other character models we might have missed
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
+            -- check if this model belongs to a known player
+            local isKnown = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character == model then isKnown = true break end
+            end
+            if not isKnown then
+                applied = applied + ApplySoundsToCharacter(model)
+            end
+        end
+    end
+
+    -- EliminatedSound in SoundService (only once)
     if KillSoundID ~= "rbxassetid://0" then
-        local ss = game:GetService("SoundService")
-        local elim = ss:FindFirstChild("EliminatedSound")
+        local elim = game:GetService("SoundService"):FindFirstChild("EliminatedSound")
         if elim then
             elim.SoundId = KillSoundID
             applied = applied + 1
         end
     end
 
+    return applied
+end
+
+CustomGroup:CreateButton("Apply to ALL Players", function()
+    local applied = ApplySoundsToAll()
     if applied == 0 then
-        Notify("Sounds", "No matching sounds found on character", 3)
+        Notify("Sounds", "No matching sounds found", 3)
     else
-        Notify("Sounds", applied .. " sound(s) replaced", 3)
-        print("[neverloose] " .. applied .. " sound(s) applied")
+        Notify("Sounds", applied .. " sound(s) replaced (all players)", 3)
+        print("[neverloose] " .. applied .. " sound(s) applied globally")
     end
 end)
 
@@ -656,10 +685,15 @@ Connections.render = RunService.RenderStepped:Connect(function()
 end)
 
 -- ═══════════════════════════════════════════════════
--- PLAYER TRACKING
+-- PLAYER TRACKING + SOUND AUTO-APPLY
 -- ═══════════════════════════════════════════════════
 Connections.playerAdded = Players.PlayerAdded:Connect(function(p)
     if ESP_Enabled then pcall(CreateESP, p) end
+    -- re-apply sounds when new player's character loads
+    p.CharacterAdded:Connect(function(char)
+        task.wait(1) -- wait for weapons to load
+        pcall(ApplySoundsToAll)
+    end)
 end)
 
 Connections.playerRemoving = Players.PlayerRemoving:Connect(function(p)
@@ -669,6 +703,17 @@ end)
 for _, p in ipairs(Players:GetPlayers()) do
     if p ~= LP or not ESP_HideLocal then pcall(CreateESP, p) end
 end
+
+-- auto-apply sounds on local player respawn
+Connections.localRespawn = LP.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    pcall(ApplySoundsToAll)
+end)
+
+-- initial apply after short delay (let weapons load)
+task.delay(2, function()
+    pcall(ApplySoundsToAll)
+end)
 
 -- ═══════════════════════════════════════════════════
 -- CLEANUP
