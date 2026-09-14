@@ -1178,40 +1178,26 @@ _G.setCustomSkin = function(id)
 end
 
 local R15 = {
-    -- spine
+    -- spine (3)
     {"HumanoidRootPart", "LowerTorso"},
     {"LowerTorso", "UpperTorso"},
     {"UpperTorso", "Head"},
-    -- left arm
+    -- left arm (3)
     {"UpperTorso", "LeftUpperArm"},
     {"LeftUpperArm", "LeftLowerArm"},
     {"LeftLowerArm", "LeftHand"},
-    -- right arm
+    -- right arm (3)
     {"UpperTorso", "RightUpperArm"},
     {"RightUpperArm", "RightLowerArm"},
     {"RightLowerArm", "RightHand"},
-    -- left leg
+    -- left leg (3)
     {"LowerTorso", "LeftUpperLeg"},
     {"LeftUpperLeg", "LeftLowerLeg"},
     {"LeftLowerLeg", "LeftFoot"},
-    -- right leg
+    -- right leg (3)
     {"LowerTorso", "RightUpperLeg"},
     {"RightUpperLeg", "RightLowerLeg"},
     {"RightLowerLeg", "RightFoot"},
-    -- extra detail: neck cross, shoulder joints, hip joints, knee joints, spine mid
-    {"Head", "UpperTorso"},        -- neck (thicker bone feel)
-    {"UpperTorso", "LeftUpperArm"},-- left shoulder joint
-    {"UpperTorso", "RightUpperArm"},-- right shoulder joint
-    {"LowerTorso", "LeftUpperLeg"},-- left hip joint
-    {"LowerTorso", "RightUpperLeg"},-- right hip joint
-    {"LeftUpperLeg", "LeftLowerLeg"},  -- left knee
-    {"RightUpperLeg", "RightLowerLeg"}, -- right knee
-    {"LeftUpperArm", "LeftLowerArm"},   -- left elbow
-    {"RightUpperArm", "RightLowerArm"}, -- right elbow
-    {"LeftLowerLeg", "LeftFoot"},       -- left ankle
-    {"RightLowerLeg", "RightFoot"},     -- right ankle
-    {"LeftLowerArm", "LeftHand"},       -- left wrist
-    {"RightLowerArm", "RightHand"},     -- right wrist
 }
 
 local R6 = {
@@ -1221,12 +1207,6 @@ local R6 = {
     {"Torso", "Right Arm"},
     {"Torso", "Left Leg"},
     {"Torso", "Right Leg"},
-    -- R6 extras
-    {"Head", "Torso"},
-    {"Torso", "Left Arm"},
-    {"Torso", "Right Arm"},
-    {"Left Leg", "Torso"},
-    {"Right Leg", "Torso"},
 }
 
 local function W2S(pos)
@@ -1278,6 +1258,17 @@ local function MakeTextDrawing()
     return d
 end
 
+local function MakeSquare()
+    local s = Drawing.new("Square")
+    s.Visible = false
+    s.Filled = true
+    s.Color = Color3.fromRGB(0, 255, 255)
+    s.Thickness = 1
+    s.Transparency = 1
+    s.ZIndex = 997
+    return s
+end
+
 local function CreateESP(player)
     if ESP[player] then return end
     local ok, e = pcall(function()
@@ -1291,8 +1282,10 @@ local function CreateESP(player)
             name = nil,
             dist = nil,
             weapon = nil,
+            headDot = nil,
+            joints = {},
         }
-        for i = 1, 28 do data.lines[i] = MakeLine() end
+        for i = 1, 15 do data.lines[i] = MakeLine() end
         for i = 1, 4 do data.boxLines[i] = MakeLine() end
         data.boxFill = MakeQuad()
         data.boxFill.Filled = true
@@ -1306,6 +1299,10 @@ local function CreateESP(player)
         data.weapon = MakeTextDrawing()
         data.weapon.Size = 11
         data.weapon.Color = Color3.fromRGB(0, 255, 255)
+        -- head dot (small filled square at top of head)
+        data.headDot = MakeSquare()
+        -- joint dots at shoulders, elbows, wrists, hips, knees, ankles (12 joints)
+        for i = 1, 12 do data.joints[i] = MakeSquare() end
         return data
     end)
     if ok and e then
@@ -1325,6 +1322,8 @@ function DestroyESP(player)
     pcall(function() e.name:Remove() end)
     pcall(function() e.dist:Remove() end)
     pcall(function() e.weapon:Remove() end)
+    pcall(function() e.headDot:Remove() end)
+    for _, j in ipairs(e.joints) do pcall(function() j:Remove() end) end
     ESP[player] = nil
 end
 
@@ -1338,6 +1337,8 @@ local function HideESP(e)
     e.name.Visible = false
     e.dist.Visible = false
     e.weapon.Visible = false
+    e.headDot.Visible = false
+    for _, j in ipairs(e.joints) do j.Visible = false end
 end
 
 local function GetWeaponName(char)
@@ -1391,18 +1392,7 @@ end
 
 -- project a world-space AABB to screen-space box (left, top, right, bottom, onscreen)
 local function AABB2Screen(minV, maxV)
-    local cam = Camera.CFrame
-    local vp = Camera.ViewportSize
-    local function proj(p)
-        local v = cam:PointToObjectSpace(p)
-        if v.Z > 0 then return nil end
-        local x = (v.X / -v.Z) * (vp.X / 2) + vp.X / 2
-        local y = (v.Y / -v.Z) * (vp.Y / 2) + vp.Y / 2
-        return Vector2.new(x, y)
-    end
-    -- project all 8 corners
-    local pts = {}
-    for _, c in ipairs({
+    local positions = {
         Vector3.new(minV.X, minV.Y, minV.Z),
         Vector3.new(maxV.X, minV.Y, minV.Z),
         Vector3.new(minV.X, maxV.Y, minV.Z),
@@ -1411,9 +1401,11 @@ local function AABB2Screen(minV, maxV)
         Vector3.new(maxV.X, minV.Y, maxV.Z),
         Vector3.new(minV.X, maxV.Y, maxV.Z),
         Vector3.new(maxV.X, maxV.Y, maxV.Z),
-    }) do
-        local s = proj(c)
-        if s then table.insert(pts, s) end
+    }
+    local pts = {}
+    for _, pos in ipairs(positions) do
+        local s, on = W2S(pos)
+        if on then table.insert(pts, s) end
     end
     if #pts < 2 then return 0, 0, 0, 0, false end
     local lx, ty = pts[1].X, pts[1].Y
@@ -1475,6 +1467,11 @@ local function RenderESP()
 
         -- skeleton
         if ESP_Skeleton then
+            -- spine part names for thicker lines
+            local spineNames = {
+                HumanoidRootPart = true, LowerTorso = true,
+                UpperTorso = true, Head = true,
+            }
             local count = #bones
             for i = 1, count do
                 local a = char:FindFirstChild(bones[i][1])
@@ -1486,14 +1483,61 @@ local function RenderESP()
                     e.lines[i].To = sb
                     e.lines[i].Visible = oa and ob
                     e.lines[i].Color = color
-                    e.lines[i].Thickness = ESP_Thickness
+                    -- thicker spine + head connection
+                    local isSpine = spineNames[bones[i][1]] and spineNames[bones[i][2]]
+                    e.lines[i].Thickness = isSpine and math.max(ESP_Thickness + 1, 2) or ESP_Thickness
                 else
                     e.lines[i].Visible = false
                 end
             end
             for i = count + 1, #e.lines do e.lines[i].Visible = false end
+
+            -- head dot (small filled square at top of head)
+            local headPart = char:FindFirstChild("Head")
+            if headPart then
+                local headTop = headPart.Position + Vector3.new(0, headPart.Size.Y / 2 + 0.1, 0)
+                local hs, ho = W2S(headTop)
+                if ho then
+                    local dotSize = math.clamp(6 - (dist / 100), 3, 8)
+                    e.headDot.Position = Vector2.new(hs.X - dotSize / 2, hs.Y - dotSize / 2)
+                    e.headDot.Size = Vector2.new(dotSize, dotSize)
+                    e.headDot.Color = color
+                    e.headDot.Visible = true
+                else
+                    e.headDot.Visible = false
+                end
+            else
+                e.headDot.Visible = false
+            end
+
+            -- joint dots (shoulders, elbows, wrists, hips, knees, ankles)
+            local jointParts = {
+                [1] = "LeftUpperArm",   [2] = "LeftLowerArm",  [3] = "LeftHand",
+                [4] = "RightUpperArm",  [5] = "RightLowerArm", [6] = "RightHand",
+                [7] = "LeftUpperLeg",   [8] = "LeftLowerLeg",  [9] = "LeftFoot",
+                [10] = "RightUpperLeg", [11] = "RightLowerLeg", [12] = "RightFoot",
+            }
+            for i = 1, 12 do
+                local jp = char:FindFirstChild(jointParts[i])
+                if jp then
+                    local js, jo = W2S(jp.Position)
+                    if jo then
+                        local jSize = math.clamp(4 - (dist / 150), 2, 5)
+                        e.joints[i].Position = Vector2.new(js.X - jSize / 2, js.Y - jSize / 2)
+                        e.joints[i].Size = Vector2.new(jSize, jSize)
+                        e.joints[i].Color = color
+                        e.joints[i].Visible = true
+                    else
+                        e.joints[i].Visible = false
+                    end
+                else
+                    e.joints[i].Visible = false
+                end
+            end
         else
             for _, l in ipairs(e.lines) do l.Visible = false end
+            e.headDot.Visible = false
+            for _, j in ipairs(e.joints) do j.Visible = false end
         end
 
         -- box + health + text
